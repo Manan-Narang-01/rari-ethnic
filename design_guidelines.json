@@ -1,0 +1,152 @@
+{
+  "theme_archetype": {
+    "name": "Archetype 1 (Organic & Earthy) - Ethnic Wear Variant",
+    "theme": "Light",
+    "description": "Warm, festive, premium-but-approachable. Balances a trusted, grounded feel (ivory base) with the celebratory energy of Indian ethnic fashion (jewel-toned accents). Not cold or minimal, not cluttered. Rooted in heritage."
+  },
+  "typography": {
+    "heading_font": "Rozha One",
+    "body_font": "Jost",
+    "import_url": "https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Rozha+One&display=swap",
+    "usage_rules": {
+      "h1": "font-['Rozha_One'] text-4xl sm:text-5xl lg:text-6xl text-[#2B211E] tracking-normal leading-tight",
+      "h2": "font-['Rozha_One'] text-2xl sm:text-3xl lg:text-4xl text-[#2B211E] tracking-normal",
+      "h3": "font-['Rozha_One'] text-xl sm:text-2xl text-[#2B211E]",
+      "body": "font-['Jost'] text-base text-[#2B211E] leading-relaxed",
+      "small_label": "font-['Jost'] text-xs uppercase tracking-[0.15em] text-[#6B5B55]"
+    }
+  },
+  "color_palette": {
+    "background": {
+      "base": "#FAF6F0",
+      "surface": "#FFFFFF",
+      "muted": "#F3EDE4"
+    },
+    "text": {
+      "primary": "#2B211E",
+      "secondary": "#6B5B55",
+      "inverse": "#FAF6F0"
+    },
+    "brand": {
+      "primary": "#7E1F35",
+      "primary_hover": "#631728",
+      "mustard": "#DCA537",
+      "teal": "#185D64",
+      "magenta": "#98285D"
+    },
+    "accent": {
+      "whatsapp": "#25D366"
+    }
+  },
+  "spacing_and_layout": {
+    "philosophy": "Generous spacing. Create breathing room for high-quality product images. Mobile-first layout with thumb-friendly CTA positioning.",
+    "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "product_grid": "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8",
+    "bento_category": "grid grid-cols-1 md:grid-cols-3 gap-4"
+  },
+  "components_styling": {
+    "buttons": {
+      "primary": "bg-[#7E1F35] text-[#FAF6F0] rounded-md px-6 py-3 font-['Jost'] font-medium transition-colors hover:bg-[#631728]",
+      "secondary": "border-2 border-[#7E1F35] text-[#7E1F35] rounded-md px-6 py-3 font-['Jost'] font-medium transition-colors hover:bg-[#7E1F35] hover:text-[#FAF6F0]",
+      "whatsapp": "fixed bottom-6 right-6 bg-[#25D366] text-white p-4 rounded-full shadow-lg hover:scale-105 transition-transform z-50 flex items-center justify-center"
+    },
+    "cards": {
+      "product": "group cursor-pointer flex flex-col bg-transparent",
+      "image_container": "relative aspect-[3/4] overflow-hidden rounded-md bg-[#F3EDE4]",
+      "image": "w-full h-full object-cover transition-transform duration-700 group-hover:scale-105",
+      "info": "mt-4 text-left space-y-1"
+    },
+    "inputs": {
+      "base": "w-full border-b border-[#2B211E]/20 bg-transparent py-2 font-['Jost'] text-[#2B211E] focus:outline-none focus:border-[#7E1F35] transition-colors rounded-none placeholder:text-[#6B5B55]/70"
+    },
+    "background_textures": {
+      "mandala_overlay": "absolute inset-0 opacity-[0.03] mix-blend-multiply pointer-events-none bg-[url('https://images.unsplash.com/photo-1711552466487-ac9afb5528cb')] bg-repeat"
+    }
+  },
+  "motion_and_interaction": {
+    "hover_effects": "Product images subtly scale up (105%) over 700ms on hover. Secondary image reveals on desktop hover via opacity crossfade.",
+    "page_transitions": "Soft fade in for main content areas.",
+    "urgency_indicators": "Subtle pulsing red/maroon dot next to 'Only 3 left' text to grab attention without screaming."
+  },
+  "pages": {
+    "home": {
+      "hero": "Navratri hero section taking 80vh. Full bleed background image with 40% dark gradient overlay. Rozha One headline, countdown timer component, Primary CTA. Center aligned content.",
+      "categories": "Bento grid of categories (Suits, Kurtis, Lehengas) with deep jewel tone overlays.",
+      "why_rari": "A horizontal strip/marquee with textured ivory background. 'Premium Fabric • Honest Pricing • Surat to your Door'.",
+      "bestsellers": "Grid of 4-8 products with quick-add functionality.",
+      "instagram": "Grid of 4 square images mimicking IG feed with '@rari.ethnic' handle."
+    },
+    "shop": {
+      "layout": "Mobile-first filter drawer on the left/top. Product grid on the right.",
+      "filters": "Collapsible accordions for Price, Size, Color, Fabric, Occasion.",
+      "card_interaction": "On desktop, hover reveals alternate image. On mobile, clear tap targets."
+    },
+    "product_detail": {
+      "layout": "Split layout on desktop (Sticky info right, scrolling images left). Carousel on mobile.",
+      "actions": "Full width 'Add to Cart' (Primary), followed by 'Ask about this piece on WhatsApp' (Secondary outline with WhatsApp icon).",
+      "details": "Accordion sections for Size Chart, Fabric Care, Fit Notes.",
+      "urgency": "Text '🔥 High Demand: Only [N] left in stock' in #7E1F35."
+    },
+    "navratri_landing": {
+      "vibe": "Richer, more saturated. Use #DCA537 (Mustard) and #7E1F35 (Maroon) heavily.",
+      "content": "Countdown timer at top. Categorized sections ('Garba Ready', 'Day 1-9 Color Guide')."
+    },
+    "cart_checkout": {
+      "flow": "Drawer/Slide-out cart. 3-step checkout (Address, Shipping, Payment).",
+      "payment": "Prominent 'Cash on Delivery' selection. Clear breakdown of total pricing (₹)."
+    }
+  },
+  "media_urls": {
+    "hero_and_banners": [
+      {
+        "url": "https://images.unsplash.com/photo-1654764746225-e63f5e90facd",
+        "description": "Red and gold bridal outfit, perfect for Navratri Hero banner."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1677691257363-eebd2abeafec",
+        "description": "Woman in red bridal outfit, great for category header."
+      }
+    ],
+    "products_lehengas": [
+      {
+        "url": "https://images.unsplash.com/photo-1503160865267-af4660ce7bf2",
+        "description": "Lehenga ethnic wear 1"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1668371459824-094a960a227d",
+        "description": "Red outfit on bench"
+      }
+    ],
+    "products_suits_kurtis": [
+      {
+        "url": "https://images.unsplash.com/photo-1708534246055-d7b149acb731",
+        "description": "Maroon dress product shot"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1708534246051-7f47b279e94b",
+        "description": "Purple dress product shot"
+      },
+      {
+        "url": "https://images.pexels.com/photos/13178920/pexels-photo-13178920.jpeg",
+        "description": "Blue kurti walking"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1764740146693-4955d02c98f9",
+        "description": "Outdoor suit"
+      }
+    ],
+    "textures": [
+      {
+        "url": "https://images.unsplash.com/photo-1711552466487-ac9afb5528cb",
+        "description": "Mandala floral pattern for background overlays"
+      }
+    ]
+  },
+  "instructions_to_main_agent": {
+    "testing": "All interactive and key informational elements MUST include a 'data-testid' attribute using kebab-case role-based naming (e.g., data-testid='add-to-cart-button').",
+    "ui_libraries": "Use Lucide-React for generic icons, but use react-icons for the WhatsApp icon (FaWhatsapp).",
+    "responsiveness": "Ensure mobile checkout is fully optimized. Sticky Add to Cart button on mobile PDP.",
+    "brand_tone": "Do not use generic SaaS placeholders. Incorporate the provided media URLs heavily. If missing a product image, reuse the ones provided. Never use via.placeholder.com.",
+    "fonts": "Inject the provided Google Fonts URL into the main HTML or via @import in CSS. Apply Rozha One strictly to headings to give the brand its ethnic identity."
+  }
+}
