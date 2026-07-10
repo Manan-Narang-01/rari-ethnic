@@ -17,28 +17,35 @@ export const Header = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 bg-[#FAF6F0]/90 backdrop-blur-md border-b border-[#2B211E]/8">
+    <header className="sticky top-0 z-40 bg-[#E8E3D7]/92 backdrop-blur-md border-b border-[#8B9A9F]/20">
       {/* Announcement strip */}
-      <div className="bg-[#2B211E] text-[#FAF6F0]">
+      <div className="bg-[#2A2E30] text-[#E8E3D7]">
         <div className="container-x py-1.5 overflow-hidden">
-          <div className="flex whitespace-nowrap animate-marquee gap-16 text-[11px] tracking-widest uppercase">
+          <div className="flex whitespace-nowrap animate-marquee gap-20 text-[10px] tracking-[0.28em] uppercase font-body">
+            <span>Handcrafted in Surat</span>
+            <span>·</span>
             <span>Free shipping over ₹2,000</span>
-            <span>Pan-India delivery • 4-7 days</span>
+            <span>·</span>
+            <span>Pan-India delivery in 4-7 days</span>
+            <span>·</span>
             <span>Cash on Delivery available</span>
-            <span>Navratri drop live · limited stock</span>
+            <span>·</span>
+            <span>Handcrafted in Surat</span>
+            <span>·</span>
             <span>Free shipping over ₹2,000</span>
-            <span>Pan-India delivery • 4-7 days</span>
+            <span>·</span>
+            <span>Pan-India delivery in 4-7 days</span>
+            <span>·</span>
             <span>Cash on Delivery available</span>
-            <span>Navratri drop live · limited stock</span>
           </div>
         </div>
       </div>
 
-      <div className="container-x flex items-center justify-between py-4">
+      <div className="container-x flex items-center justify-between py-5">
         {/* Mobile menu */}
         <button
           data-testid="mobile-menu-toggle"
-          className="md:hidden p-2 -ml-2 text-[#2B211E]"
+          className="md:hidden p-2 -ml-2 text-[#2A2E30]"
           onClick={() => setMobileOpen((s) => !s)}
           aria-label="Menu"
         >
@@ -49,27 +56,34 @@ export const Header = () => {
         <Link
           to="/"
           data-testid="header-logo"
-          className="font-display text-2xl sm:text-3xl leading-none text-[#2B211E] hover:text-[#7E1F35] transition-colors"
+          className="flex items-center gap-2 group"
+          aria-label="Rari — Handcrafted Ethnic"
         >
-          Rari <span className="text-[#7E1F35]">Ethnic</span>
+          <img
+            src="/brand/logo-transparent.png"
+            alt="Rari"
+            className="h-14 md:h-20 w-auto transition-opacity group-hover:opacity-80"
+          />
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-8">
+        <nav className="hidden md:flex items-center gap-9">
           {nav.map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
               data-testid={`nav-${n.label.toLowerCase()}`}
               className={({ isActive }) =>
-                `font-body text-sm tracking-wide uppercase transition-colors relative pb-1 ${
-                  isActive ? "text-[#7E1F35]" : "text-[#2B211E] hover:text-[#7E1F35]"
-                } ${n.accent ? "font-medium" : ""}`
+                `font-body text-[13px] tracking-[0.15em] uppercase transition-colors relative pb-1 ${
+                  isActive
+                    ? "text-[#A0684E]"
+                    : "text-[#2A2E30] hover:text-[#A0684E]"
+                }`
               }
             >
               {n.label}
               {n.accent && (
-                <span className="absolute -top-2 -right-3 w-1.5 h-1.5 rounded-full bg-[#DCA537]" />
+                <span className="absolute -top-1 -right-3 w-1.5 h-1.5 rounded-full bg-[#B58D3E]" />
               )}
             </NavLink>
           ))}
@@ -82,21 +96,21 @@ export const Header = () => {
             rel="noopener noreferrer"
             aria-label="Instagram"
             data-testid="header-instagram"
-            className="hidden sm:inline-flex p-2 text-[#2B211E] hover:text-[#7E1F35] transition-colors"
+            className="hidden sm:inline-flex p-2 text-[#2A2E30] hover:text-[#A0684E] transition-colors"
           >
-            <Instagram size={19} />
+            <Instagram size={18} strokeWidth={1.6} />
           </a>
           <button
             data-testid="header-cart-button"
             onClick={() => setIsOpen(true)}
-            className="relative p-2 text-[#2B211E] hover:text-[#7E1F35] transition-colors"
+            className="relative p-2 text-[#2A2E30] hover:text-[#A0684E] transition-colors"
             aria-label="Cart"
           >
-            <ShoppingBag size={20} />
+            <ShoppingBag size={20} strokeWidth={1.6} />
             {count > 0 && (
               <span
                 data-testid="header-cart-count"
-                className="absolute -top-0.5 -right-0.5 bg-[#7E1F35] text-[#FAF6F0] rounded-full text-[10px] w-5 h-5 flex items-center justify-center font-medium"
+                className="absolute -top-0.5 -right-0.5 bg-[#A0684E] text-[#E8E3D7] rounded-full text-[10px] w-5 h-5 flex items-center justify-center font-medium"
               >
                 {count}
               </span>
@@ -107,7 +121,7 @@ export const Header = () => {
 
       {/* Mobile drawer */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-[#2B211E]/10 bg-[#FAF6F0]">
+        <div className="md:hidden border-t border-[#8B9A9F]/25 bg-[#E8E3D7]">
           <nav className="container-x py-4 flex flex-col gap-1">
             {nav.map((n) => (
               <NavLink
@@ -116,8 +130,8 @@ export const Header = () => {
                 onClick={() => setMobileOpen(false)}
                 data-testid={`mobile-nav-${n.label.toLowerCase()}`}
                 className={({ isActive }) =>
-                  `font-display text-xl py-2 px-2 border-b border-[#2B211E]/5 ${
-                    isActive ? "text-[#7E1F35]" : "text-[#2B211E]"
+                  `font-display text-2xl py-2 px-2 border-b border-[#8B9A9F]/15 ${
+                    isActive ? "text-[#A0684E]" : "text-[#2A2E30]"
                   }`
                 }
               >
@@ -127,14 +141,14 @@ export const Header = () => {
             <Link
               to="/contact"
               onClick={() => setMobileOpen(false)}
-              className="font-display text-xl py-2 px-2 text-[#2B211E]"
+              className="font-display text-2xl py-2 px-2 text-[#2A2E30]"
             >
               Contact
             </Link>
             <Link
               to="/size-guide"
               onClick={() => setMobileOpen(false)}
-              className="font-display text-xl py-2 px-2 text-[#2B211E]"
+              className="font-display text-2xl py-2 px-2 text-[#2A2E30]"
             >
               Size Guide
             </Link>

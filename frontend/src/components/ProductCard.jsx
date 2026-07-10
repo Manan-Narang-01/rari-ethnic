@@ -18,7 +18,7 @@ export const ProductCard = ({ product, index = 0 }) => {
       className="group block fade-up"
       style={{ animationDelay: `${Math.min(index * 60, 300)}ms` }}
     >
-      <div className="relative aspect-[3/4] overflow-hidden bg-[#F3EDE4]">
+      <div className="relative aspect-[3/4] overflow-hidden bg-[#DDD5C4]">
         <img
           src={primary}
           alt={product.name}
@@ -34,46 +34,46 @@ export const ProductCard = ({ product, index = 0 }) => {
         {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">
           {product.is_new && (
-            <span className="bg-[#185D64] text-[#FAF6F0] label-caps px-2 py-0.5 text-[10px]">
+            <span className="bg-[#7B6E5A] text-[#E8E3D7] label-caps px-2 py-0.5 text-[10px]">
               New
             </span>
           )}
           {product.is_bestseller && (
-            <span className="bg-[#7E1F35] text-[#FAF6F0] label-caps px-2 py-0.5 text-[10px]">
+            <span className="bg-[#A0684E] text-[#E8E3D7] label-caps px-2 py-0.5 text-[10px]">
               Bestseller
             </span>
           )}
           {discount && (
-            <span className="bg-[#DCA537] text-[#2B211E] label-caps px-2 py-0.5 text-[10px]">
+            <span className="bg-[#B58D3E] text-[#2A2E30] label-caps px-2 py-0.5 text-[10px]">
               {discount}% off
             </span>
           )}
         </div>
         {product.stock <= 3 && product.stock > 0 && (
-          <div className="absolute bottom-3 left-3 bg-[#FAF6F0]/95 backdrop-blur-sm px-2.5 py-1 rounded-sm flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#7E1F35] pulse-dot" />
-            <span className="text-[11px] font-medium text-[#7E1F35]">
+          <div className="absolute bottom-3 left-3 bg-[#E8E3D7]/95 backdrop-blur-sm px-2.5 py-1 rounded-sm flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#A0684E] pulse-dot" />
+            <span className="text-[11px] font-medium text-[#A0684E]">
               Only {product.stock} left
             </span>
           </div>
         )}
       </div>
       <div className="mt-4 text-left space-y-1">
-        <h3 className="font-display text-lg sm:text-xl leading-tight text-[#2B211E] group-hover:text-[#7E1F35] transition-colors">
+        <h3 className="font-display text-lg sm:text-xl leading-tight text-[#2A2E30] group-hover:text-[#A0684E] transition-colors">
           {product.name}
         </h3>
         <div className="flex items-baseline gap-2">
-          <span className="font-body font-medium text-[#2B211E]">
+          <span className="font-body font-medium text-[#2A2E30]">
             {formatINR(product.price)}
           </span>
           {product.compare_at_price && (
-            <span className="text-xs text-[#6B5B55] line-through">
+            <span className="text-xs text-[#6E7B85] line-through">
               {formatINR(product.compare_at_price)}
             </span>
           )}
         </div>
         {product.fabric && (
-          <p className="text-xs text-[#6B5B55] font-body line-clamp-1">
+          <p className="text-xs text-[#6E7B85] font-body line-clamp-1">
             {product.fabric}
           </p>
         )}

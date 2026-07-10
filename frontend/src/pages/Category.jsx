@@ -81,19 +81,19 @@ export const Category = () => {
   const activeCount = [priceBucket, selectedSize, selectedFabric, selectedOccasion].filter(Boolean).length;
 
   return (
-    <div className="bg-[#FAF6F0]">
+    <div className="bg-[#E8E3D7]">
       {/* Header */}
-      <div className="border-b border-[#2B211E]/8 bg-[#F3EDE4]/40">
+      <div className="border-b border-[#2A2E30]/8 bg-[#DDD5C4]/40">
         <div className="container-x py-10 md:py-14 fade-up">
-          <div className="text-sm text-[#6B5B55]">
-            <Link to="/" className="hover:text-[#7E1F35]">Home</Link>
+          <div className="text-sm text-[#6E7B85]">
+            <Link to="/" className="hover:text-[#A0684E]">Home</Link>
             <span className="mx-2">/</span>
-            <span className="text-[#2B211E]">{meta.title}</span>
+            <span className="text-[#2A2E30]">{meta.title}</span>
           </div>
           <h1 data-testid="category-title" className="font-display text-4xl sm:text-5xl lg:text-6xl mt-3">
             {meta.title}
           </h1>
-          <p className="text-[#6B5B55] mt-2 max-w-xl">{meta.sub}</p>
+          <p className="text-[#6E7B85] mt-2 max-w-xl">{meta.sub}</p>
         </div>
       </div>
 
@@ -122,18 +122,18 @@ export const Category = () => {
             <button
               data-testid="filter-toggle-mobile"
               onClick={() => setFilterOpen(true)}
-              className="lg:hidden inline-flex items-center gap-2 text-sm border border-[#2B211E]/15 px-4 py-2 rounded-sm"
+              className="lg:hidden inline-flex items-center gap-2 text-sm border border-[#2A2E30]/15 px-4 py-2 rounded-sm"
             >
               <SlidersHorizontal size={14} /> Filters {activeCount > 0 && `(${activeCount})`}
             </button>
-            <div className="hidden lg:block text-sm text-[#6B5B55]">
+            <div className="hidden lg:block text-sm text-[#6E7B85]">
               {filtered.length} piece{filtered.length !== 1 ? "s" : ""}
             </div>
             <select
               data-testid="sort-select"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="text-sm bg-transparent border border-[#2B211E]/15 rounded-sm px-3 py-2 focus:outline-none focus:border-[#7E1F35]"
+              className="text-sm bg-transparent border border-[#2A2E30]/15 rounded-sm px-3 py-2 focus:outline-none focus:border-[#A0684E]"
             >
               <option value="featured">Featured</option>
               <option value="new">Newest</option>
@@ -146,7 +146,7 @@ export const Category = () => {
           {loading ? (
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="aspect-[3/4] bg-[#F3EDE4] animate-pulse rounded-sm" />
+                <div key={i} className="aspect-[3/4] bg-[#DDD5C4] animate-pulse rounded-sm" />
               ))}
             </div>
           ) : filtered.length === 0 ? (
@@ -154,7 +154,7 @@ export const Category = () => {
               <p className="font-display text-2xl">No pieces match these filters</p>
               <button
                 onClick={clearAll}
-                className="mt-4 text-sm underline underline-offset-4 text-[#7E1F35]"
+                className="mt-4 text-sm underline underline-offset-4 text-[#A0684E]"
               >
                 Clear filters
               </button>
@@ -172,8 +172,8 @@ export const Category = () => {
       {/* Mobile filter drawer */}
       {filterOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-[#2B211E]/50" onClick={() => setFilterOpen(false)} />
-          <aside className="absolute right-0 top-0 h-full w-[85%] max-w-sm bg-[#FAF6F0] p-6 overflow-y-auto">
+          <div className="absolute inset-0 bg-[#2A2E30]/50" onClick={() => setFilterOpen(false)} />
+          <aside className="absolute right-0 top-0 h-full w-[85%] max-w-sm bg-[#E8E3D7] p-6 overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-display text-2xl">Filters</h3>
               <button onClick={() => setFilterOpen(false)}><X size={20} /></button>
@@ -194,7 +194,7 @@ export const Category = () => {
             />
             <button
               onClick={() => setFilterOpen(false)}
-              className="mt-6 w-full bg-[#7E1F35] text-[#FAF6F0] py-3 rounded-sm uppercase tracking-widest text-sm"
+              className="mt-6 w-full bg-[#A0684E] text-[#E8E3D7] py-3 rounded-sm uppercase tracking-widest text-sm"
             >
               Show {filtered.length} pieces
             </button>
@@ -221,9 +221,9 @@ const FiltersContent = ({
 }) => (
   <div className="space-y-7 text-sm">
     <div className="flex items-center justify-between">
-      <span className="label-caps text-[#7E1F35]">Refine</span>
+      <span className="label-caps text-[#A0684E]">Refine</span>
       {activeCount > 0 && (
-        <button onClick={clearAll} className="text-xs underline text-[#6B5B55]" data-testid="clear-filters">
+        <button onClick={clearAll} className="text-xs underline text-[#6E7B85]" data-testid="clear-filters">
           Clear all
         </button>
       )}
@@ -238,7 +238,7 @@ const FiltersContent = ({
               name="price"
               checked={priceBucket === b.key}
               onChange={() => setPriceBucket(priceBucket === b.key ? null : b.key)}
-              className="accent-[#7E1F35]"
+              className="accent-[#A0684E]"
             />
             <span>{b.label}</span>
           </label>
@@ -255,8 +255,8 @@ const FiltersContent = ({
             onClick={() => setSelectedSize(selectedSize === s ? null : s)}
             className={`w-9 h-9 border text-xs rounded-sm ${
               selectedSize === s
-                ? "bg-[#7E1F35] text-[#FAF6F0] border-[#7E1F35]"
-                : "border-[#2B211E]/20 hover:border-[#7E1F35]"
+                ? "bg-[#A0684E] text-[#E8E3D7] border-[#A0684E]"
+                : "border-[#2A2E30]/20 hover:border-[#A0684E]"
             }`}
           >
             {s}
@@ -275,7 +275,7 @@ const FiltersContent = ({
                 name="fabric"
                 checked={selectedFabric === f}
                 onChange={() => setSelectedFabric(selectedFabric === f ? null : f)}
-                className="accent-[#7E1F35]"
+                className="accent-[#A0684E]"
               />
               <span>{f}</span>
             </label>
@@ -293,8 +293,8 @@ const FiltersContent = ({
               onClick={() => setSelectedOccasion(selectedOccasion === o ? null : o)}
               className={`px-3 py-1.5 border text-xs rounded-sm ${
                 selectedOccasion === o
-                  ? "bg-[#185D64] text-[#FAF6F0] border-[#185D64]"
-                  : "border-[#2B211E]/20 hover:border-[#185D64]"
+                  ? "bg-[#7B6E5A] text-[#E8E3D7] border-[#7B6E5A]"
+                  : "border-[#2A2E30]/20 hover:border-[#7B6E5A]"
               }`}
             >
               {o}
@@ -308,7 +308,7 @@ const FiltersContent = ({
 
 const Section = ({ title, children }) => (
   <div>
-    <div className="font-display text-lg mb-3 text-[#2B211E]">{title}</div>
+    <div className="font-display text-lg mb-3 text-[#2A2E30]">{title}</div>
     {children}
   </div>
 );

@@ -1,112 +1,115 @@
-@import url("https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600;700&family=Rozha+One&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-    --ivory: #faf6f0;
-    --ivory-muted: #f3ede4;
-    --ink: #2b211e;
-    --ink-soft: #6b5b55;
-    --maroon: #7e1f35;
-    --maroon-dark: #631728;
-    --mustard: #dca537;
-    --teal: #185d64;
-    --magenta: #98285d;
+    --cream: #e8e3d7;
+    --cream-alt: #ddd5c4;
+    --cream-deep: #d4cbb8;
+    --ink: #2a2e30;
+    --ink-soft: #6e7b85;
+    --sage: #8b9a9f;
+    --sage-deep: #6e7b85;
+    --terracotta: #a0684e;
+    --terracotta-deep: #8c4a3b;
+    --gold: #b58d3e;
+    --rose: #a05b6a;
     --whatsapp: #25d366;
 }
 
 @layer base {
     :root {
-        --background: 36 43% 96%;
-        --foreground: 12 20% 15%;
-        --card: 0 0% 100%;
-        --card-foreground: 12 20% 15%;
-        --popover: 0 0% 100%;
-        --popover-foreground: 12 20% 15%;
-        --primary: 344 61% 31%;
-        --primary-foreground: 36 43% 96%;
-        --secondary: 34 34% 92%;
-        --secondary-foreground: 12 20% 15%;
-        --muted: 34 34% 92%;
-        --muted-foreground: 15 12% 38%;
-        --accent: 42 71% 54%;
-        --accent-foreground: 12 20% 15%;
-        --destructive: 344 61% 31%;
-        --destructive-foreground: 36 43% 96%;
-        --border: 20 12% 82%;
-        --input: 20 12% 82%;
-        --ring: 344 61% 31%;
-        --radius: 0.375rem;
+        --background: 39 27% 87%;
+        --foreground: 210 6% 18%;
+        --card: 39 27% 91%;
+        --card-foreground: 210 6% 18%;
+        --popover: 39 27% 91%;
+        --popover-foreground: 210 6% 18%;
+        --primary: 20 36% 47%;
+        --primary-foreground: 39 27% 87%;
+        --secondary: 39 20% 80%;
+        --secondary-foreground: 210 6% 18%;
+        --muted: 39 20% 80%;
+        --muted-foreground: 205 10% 47%;
+        --accent: 41 50% 47%;
+        --accent-foreground: 210 6% 18%;
+        --destructive: 20 36% 47%;
+        --destructive-foreground: 39 27% 87%;
+        --border: 205 12% 62%;
+        --input: 205 12% 62%;
+        --ring: 20 36% 47%;
+        --radius: 0.25rem;
     }
 }
 
 body {
     margin: 0;
-    background: var(--ivory);
+    background: var(--cream);
     color: var(--ink);
-    font-family: "Jost", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "ss01", "cv01";
 }
 
 .font-display {
-    font-family: "Rozha One", serif;
-    letter-spacing: 0.005em;
+    font-family: "Fraunces", "Cormorant Garamond", serif;
+    font-optical-sizing: auto;
+    font-variation-settings: "opsz" 144, "SOFT" 30, "WONK" 0;
+    letter-spacing: -0.01em;
 }
 
 .font-body {
-    font-family: "Jost", sans-serif;
+    font-family: "DM Sans", sans-serif;
 }
 
-/* Selection colour */
+/* Selection */
 ::selection {
-    background: var(--maroon);
-    color: var(--ivory);
+    background: var(--sage);
+    color: var(--cream);
 }
 
-/* Custom scrollbar */
+/* Scrollbar */
 ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
 }
 ::-webkit-scrollbar-track {
-    background: var(--ivory-muted);
+    background: var(--cream-alt);
 }
 ::-webkit-scrollbar-thumb {
-    background: var(--maroon);
+    background: var(--sage);
     border-radius: 6px;
 }
 
-/* Utility helpers */
 .container-x {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
 }
 
-/* Mandala texture overlay */
+/* Mandala texture — softer now */
 .mandala-overlay {
     position: absolute;
     inset: 0;
     pointer-events: none;
-    opacity: 0.04;
+    opacity: 0.025;
     background-image: url("https://images.unsplash.com/photo-1711552466487-ac9afb5528cb?w=800");
     background-repeat: repeat;
     background-size: 400px;
     mix-blend-mode: multiply;
 }
 
-/* Small caps label */
+/* Small caps label — refined */
 .label-caps {
-    font-family: "Jost", sans-serif;
-    font-size: 0.72rem;
-    letter-spacing: 0.18em;
+    font-family: "DM Sans", sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.24em;
     text-transform: uppercase;
-    color: var(--ink-soft);
+    color: var(--sage-deep);
     font-weight: 500;
 }
 
-/* Marquee */
 @keyframes marquee {
     from {
         transform: translateX(0);
@@ -116,10 +119,9 @@ body {
     }
 }
 .animate-marquee {
-    animation: marquee 30s linear infinite;
+    animation: marquee 40s linear infinite;
 }
 
-/* Pulse dot */
 @keyframes pulse-dot {
     0%,
     100% {
@@ -135,11 +137,10 @@ body {
     animation: pulse-dot 1.6s ease-in-out infinite;
 }
 
-/* Fade up on mount */
 @keyframes fadeUp {
     from {
         opacity: 0;
-        transform: translateY(12px);
+        transform: translateY(14px);
     }
     to {
         opacity: 1;
@@ -147,15 +148,25 @@ body {
     }
 }
 .fade-up {
-    animation: fadeUp 0.7s ease-out both;
+    animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Diya svg background utility */
 .bg-warm-radial {
     background: radial-gradient(
         ellipse at top,
-        rgba(220, 165, 55, 0.12),
+        rgba(139, 154, 159, 0.15),
         transparent 60%
+    );
+}
+
+/* Divider — thin sage line */
+.divider-sage {
+    height: 1px;
+    background: linear-gradient(
+        to right,
+        transparent,
+        var(--sage),
+        transparent
     );
 }
 

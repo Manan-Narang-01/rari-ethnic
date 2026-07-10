@@ -32,11 +32,11 @@ export const ProductDetail = () => {
     return (
       <div className="container-x py-20">
         <div className="grid md:grid-cols-2 gap-8">
-          <div className="aspect-[3/4] bg-[#F3EDE4] animate-pulse" />
+          <div className="aspect-[3/4] bg-[#DDD5C4] animate-pulse" />
           <div className="space-y-4">
-            <div className="h-8 bg-[#F3EDE4] w-2/3 animate-pulse" />
-            <div className="h-6 bg-[#F3EDE4] w-1/3 animate-pulse" />
-            <div className="h-24 bg-[#F3EDE4] animate-pulse" />
+            <div className="h-8 bg-[#DDD5C4] w-2/3 animate-pulse" />
+            <div className="h-6 bg-[#DDD5C4] w-1/3 animate-pulse" />
+            <div className="h-24 bg-[#DDD5C4] animate-pulse" />
           </div>
         </div>
       </div>
@@ -55,16 +55,16 @@ export const ProductDetail = () => {
   const waMsg = `Hi Rari Ethnic! I'd like to ask about "${product.name}" (${product.slug}). Is size ${size || "..."} available?`;
 
   return (
-    <div className="bg-[#FAF6F0]">
+    <div className="bg-[#E8E3D7]">
       <div className="container-x py-6">
-        <div className="text-sm text-[#6B5B55]">
-          <Link to="/" className="hover:text-[#7E1F35]">Home</Link>
+        <div className="text-sm text-[#6E7B85]">
+          <Link to="/" className="hover:text-[#A0684E]">Home</Link>
           <span className="mx-2">/</span>
-          <Link to={`/shop/${product.category}`} className="hover:text-[#7E1F35] capitalize">
+          <Link to={`/shop/${product.category}`} className="hover:text-[#A0684E] capitalize">
             {product.category}
           </Link>
           <span className="mx-2">/</span>
-          <span className="text-[#2B211E]">{product.name}</span>
+          <span className="text-[#2A2E30]">{product.name}</span>
         </div>
       </div>
 
@@ -72,7 +72,7 @@ export const ProductDetail = () => {
         <div className="grid md:grid-cols-2 gap-8 lg:gap-14">
           {/* Images */}
           <div>
-            <div className="relative aspect-[3/4] bg-[#F3EDE4] overflow-hidden">
+            <div className="relative aspect-[3/4] bg-[#DDD5C4] overflow-hidden">
               <img
                 src={product.images[activeImage]}
                 alt={product.name}
@@ -88,7 +88,7 @@ export const ProductDetail = () => {
                     onClick={() => setActiveImage(i)}
                     data-testid={`product-thumb-${i}`}
                     className={`w-20 aspect-[3/4] overflow-hidden border-2 transition ${
-                      activeImage === i ? "border-[#7E1F35]" : "border-transparent"
+                      activeImage === i ? "border-[#A0684E]" : "border-transparent"
                     }`}
                   >
                     <img src={img} alt="" className="w-full h-full object-cover" />
@@ -101,36 +101,36 @@ export const ProductDetail = () => {
           {/* Info */}
           <div className="md:sticky md:top-24 md:self-start">
             {product.is_bestseller && (
-              <span className="label-caps text-[#7E1F35]">Bestseller</span>
+              <span className="label-caps text-[#A0684E]">Bestseller</span>
             )}
             <h1 data-testid="product-name" className="font-display text-3xl sm:text-4xl lg:text-5xl leading-tight mt-2">
               {product.name}
             </h1>
             <div className="mt-3 flex items-baseline gap-3">
-              <span data-testid="product-price" className="font-display text-2xl text-[#7E1F35]">
+              <span data-testid="product-price" className="font-display text-2xl text-[#A0684E]">
                 {formatINR(product.price)}
               </span>
               {product.compare_at_price && (
                 <>
-                  <span className="text-sm text-[#6B5B55] line-through">
+                  <span className="text-sm text-[#6E7B85] line-through">
                     {formatINR(product.compare_at_price)}
                   </span>
-                  <span className="text-xs bg-[#DCA537] text-[#2B211E] px-2 py-0.5">
+                  <span className="text-xs bg-[#B58D3E] text-[#2A2E30] px-2 py-0.5">
                     Save {formatINR(product.compare_at_price - product.price)}
                   </span>
                 </>
               )}
             </div>
-            <p className="text-xs text-[#6B5B55] mt-1">Inclusive of all taxes</p>
+            <p className="text-xs text-[#6E7B85] mt-1">Inclusive of all taxes</p>
 
-            <p className="mt-6 text-[#2B211E]/85 leading-relaxed max-w-md">
+            <p className="mt-6 text-[#2A2E30]/85 leading-relaxed max-w-md">
               {product.description}
             </p>
 
             {product.stock <= 3 && product.stock > 0 && (
-              <div className="mt-5 inline-flex items-center gap-2 bg-[#7E1F35]/8 border border-[#7E1F35]/20 px-3 py-1.5 rounded-sm">
-                <span className="w-2 h-2 rounded-full bg-[#7E1F35] pulse-dot" />
-                <span className="text-sm text-[#7E1F35] font-medium" data-testid="stock-urgency">
+              <div className="mt-5 inline-flex items-center gap-2 bg-[#A0684E]/8 border border-[#A0684E]/20 px-3 py-1.5 rounded-sm">
+                <span className="w-2 h-2 rounded-full bg-[#A0684E] pulse-dot" />
+                <span className="text-sm text-[#A0684E] font-medium" data-testid="stock-urgency">
                   Only {product.stock} left in stock
                 </span>
               </div>
@@ -140,8 +140,8 @@ export const ProductDetail = () => {
             {product.sizes?.length > 0 && (
               <div className="mt-8">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="label-caps text-[#2B211E]">Size</span>
-                  <Link to="/size-guide" className="text-xs underline underline-offset-4 text-[#7E1F35]">
+                  <span className="label-caps text-[#2A2E30]">Size</span>
+                  <Link to="/size-guide" className="text-xs underline underline-offset-4 text-[#A0684E]">
                     Size guide
                   </Link>
                 </div>
@@ -153,8 +153,8 @@ export const ProductDetail = () => {
                       onClick={() => setSize(s)}
                       className={`min-w-[46px] h-11 px-3 border text-sm transition ${
                         size === s
-                          ? "bg-[#2B211E] text-[#FAF6F0] border-[#2B211E]"
-                          : "border-[#2B211E]/25 hover:border-[#2B211E]"
+                          ? "bg-[#2A2E30] text-[#E8E3D7] border-[#2A2E30]"
+                          : "border-[#2A2E30]/25 hover:border-[#2A2E30]"
                       }`}
                     >
                       {s}
@@ -169,7 +169,7 @@ export const ProductDetail = () => {
               <button
                 data-testid="add-to-cart-button"
                 onClick={onAdd}
-                className="w-full bg-[#7E1F35] text-[#FAF6F0] py-4 rounded-sm text-sm uppercase tracking-widest hover:bg-[#631728] transition-colors"
+                className="w-full bg-[#A0684E] text-[#E8E3D7] py-4 rounded-sm text-sm uppercase tracking-widest hover:bg-[#8C4A3B] transition-colors"
               >
                 Add to Cart · {formatINR(product.price)}
               </button>
@@ -178,30 +178,30 @@ export const ProductDetail = () => {
                 target="_blank"
                 rel="noopener noreferrer"
                 data-testid="whatsapp-ask-button"
-                className="w-full flex items-center justify-center gap-2 border border-[#25D366] text-[#25D366] py-4 rounded-sm text-sm uppercase tracking-widest hover:bg-[#25D366] hover:text-[#FAF6F0] transition-colors"
+                className="w-full flex items-center justify-center gap-2 border border-[#25D366] text-[#25D366] py-4 rounded-sm text-sm uppercase tracking-widest hover:bg-[#25D366] hover:text-[#E8E3D7] transition-colors"
               >
                 <MessageCircle size={16} /> Ask about this piece
               </a>
             </div>
 
             {/* Trust strip */}
-            <div className="mt-8 grid grid-cols-3 gap-2 py-4 border-y border-[#2B211E]/10 text-[11px] text-[#6B5B55]">
+            <div className="mt-8 grid grid-cols-3 gap-2 py-4 border-y border-[#2A2E30]/10 text-[11px] text-[#6E7B85]">
               <div className="flex flex-col items-center gap-1 text-center">
-                <Truck size={16} className="text-[#7E1F35]" />
+                <Truck size={16} className="text-[#A0684E]" />
                 <span>Pan-India shipping</span>
               </div>
               <div className="flex flex-col items-center gap-1 text-center">
-                <ShieldCheck size={16} className="text-[#7E1F35]" />
+                <ShieldCheck size={16} className="text-[#A0684E]" />
                 <span>COD available</span>
               </div>
               <div className="flex flex-col items-center gap-1 text-center">
-                <RotateCcw size={16} className="text-[#7E1F35]" />
+                <RotateCcw size={16} className="text-[#A0684E]" />
                 <span>7-day easy exchange</span>
               </div>
             </div>
 
             {/* Accordions */}
-            <div className="mt-8 border-t border-[#2B211E]/10">
+            <div className="mt-8 border-t border-[#2A2E30]/10">
               <Acc
                 id="size"
                 title="Fit & Size Notes"
@@ -209,7 +209,7 @@ export const ProductDetail = () => {
                 onToggle={() => setOpenAcc(openAcc === "size" ? null : "size")}
               >
                 <p>{product.fit_notes}</p>
-                <p className="mt-2 text-[#6B5B55]">
+                <p className="mt-2 text-[#6E7B85]">
                   Available sizes: {product.sizes.join(", ")}
                 </p>
               </Acc>
@@ -219,8 +219,8 @@ export const ProductDetail = () => {
                 open={openAcc === "fabric"}
                 onToggle={() => setOpenAcc(openAcc === "fabric" ? null : "fabric")}
               >
-                <p><strong className="text-[#2B211E]">Fabric.</strong> {product.fabric}</p>
-                <p className="mt-2"><strong className="text-[#2B211E]">Care.</strong> {product.care}</p>
+                <p><strong className="text-[#2A2E30]">Fabric.</strong> {product.fabric}</p>
+                <p className="mt-2"><strong className="text-[#2A2E30]">Care.</strong> {product.care}</p>
               </Acc>
               <Acc
                 id="occ"
@@ -230,7 +230,7 @@ export const ProductDetail = () => {
               >
                 <div className="flex flex-wrap gap-2">
                   {product.occasion?.map((o) => (
-                    <span key={o} className="text-xs bg-[#F3EDE4] px-2.5 py-1 rounded-sm">
+                    <span key={o} className="text-xs bg-[#DDD5C4] px-2.5 py-1 rounded-sm">
                       {o}
                     </span>
                   ))}
@@ -245,7 +245,7 @@ export const ProductDetail = () => {
           <div className="mt-24">
             <div className="flex items-end justify-between mb-8">
               <div>
-                <span className="label-caps text-[#7E1F35]">Complete the look</span>
+                <span className="label-caps text-[#A0684E]">Complete the look</span>
                 <h2 className="font-display text-3xl mt-2">You may also love</h2>
               </div>
             </div>
@@ -262,7 +262,7 @@ export const ProductDetail = () => {
 };
 
 const Acc = ({ title, open, onToggle, children }) => (
-  <div className="border-b border-[#2B211E]/10">
+  <div className="border-b border-[#2A2E30]/10">
     <button
       onClick={onToggle}
       className="w-full flex items-center justify-between py-4 text-left"
@@ -270,10 +270,10 @@ const Acc = ({ title, open, onToggle, children }) => (
       <span className="font-display text-lg">{title}</span>
       <ChevronDown
         size={16}
-        className={`transition-transform text-[#6B5B55] ${open ? "rotate-180" : ""}`}
+        className={`transition-transform text-[#6E7B85] ${open ? "rotate-180" : ""}`}
       />
     </button>
-    {open && <div className="pb-4 text-sm text-[#2B211E]/80 leading-relaxed">{children}</div>}
+    {open && <div className="pb-4 text-sm text-[#2A2E30]/80 leading-relaxed">{children}</div>}
   </div>
 );
 

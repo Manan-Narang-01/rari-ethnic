@@ -30,8 +30,8 @@ export const CountdownTimer = ({
 
   const isDark = variant === "dark";
   const cellBase = isDark
-    ? "bg-[#2B211E]/70 text-[#FAF6F0] border border-[#DCA537]/30"
-    : "bg-[#FAF6F0]/95 text-[#2B211E] border border-[#7E1F35]/15";
+    ? "bg-[#2A2E30]/70 text-[#E8E3D7] border border-[#B58D3E]/30"
+    : "bg-[#E8E3D7]/95 text-[#2A2E30] border border-[#A0684E]/15";
 
   const items = [
     { v: t.days, l: "Days" },
@@ -42,7 +42,7 @@ export const CountdownTimer = ({
 
   return (
     <div data-testid="countdown-timer" className="flex flex-col items-center gap-3">
-      <span className={`label-caps ${isDark ? "text-[#DCA537]" : "text-[#7E1F35]"}`}>
+      <span className={`label-caps ${isDark ? "text-[#B58D3E]" : "text-[#A0684E]"}`}>
         {label}
       </span>
       <div className="flex gap-2 sm:gap-3">
