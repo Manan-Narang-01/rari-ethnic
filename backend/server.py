@@ -1,32 +1,41 @@
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, Request
+from fastapi.responses import Response
 from dotenv import load_dotenv
-from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
-import os
-import logging
 from pathlib import Path
-from pydantic import BaseModel, Field, EmailStr, ConfigDict
-from typing import List, Optional
-import uuid
-from datetime import datetime, timezone
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
+from starlette.middleware.cors import CORSMiddleware
+from motor.motor_asyncio import AsyncIOMotorClient
+import os
+import logging
+from pydantic import BaseModel, Field, ConfigDict
+from typing import List, Optional
+import uuid
+from datetime import datetime, timezone
+
+from admin_lib import (
+    hash_password,
+    verify_password,
+    create_access_token,
+    require_admin,
+    init_storage,
+    put_object,
+    get_object,
+    guess_content_type,
+)
+
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
+APP_NAME = os.environ.get("APP_NAME", "rariethnic")
 
 app = FastAPI(title="Rari Ethnic API")
 api_router = APIRouter(prefix="/api")
 
 
 # ---------- Models ----------
-class ProductImage(BaseModel):
-    url: str
-    alt: Optional[str] = None
-
-
 class Product(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -34,7 +43,7 @@ class Product(BaseModel):
     slug: str
     name: str
     category: str  # suits | kurtis | lehengas
-    price: int  # in INR (whole rupees)
+    price: int
     compare_at_price: Optional[int] = None
     description: str
     fabric: str
@@ -49,9 +58,58 @@ class Product(BaseModel):
     is_bestseller: bool = False
     is_new: bool = False
     is_navratri: bool = False
-    navratri_day: Optional[str] = None  # e.g. "Day 1 - Orange"
-    edit_tag: Optional[str] = None  # "Garba Ready", "Family Function"
+    is_active: bool = True
+    navratri_day: Optional[str] = None
+    edit_tag: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class ProductCreate(BaseModel):
+    slug: Optional[str] = None
+    name: str
+    category: str
+    price: int
+    compare_at_price: Optional[int] = None
+    description: str = ""
+    fabric: str = ""
+    care: str = ""
+    fit_notes: str = ""
+    occasion: List[str] = []
+    sizes: List[str] = []
+    colors: List[str] = []
+    color_hex: List[str] = []
+    images: List[str] = []
+    stock: int = 5
+    is_bestseller: bool = False
+    is_new: bool = False
+    is_navratri: bool = False
+    is_active: bool = True
+    navratri_day: Optional[str] = None
+    edit_tag: Optional[str] = None
+
+
+class ProductUpdate(BaseModel):
+    slug: Optional[str] = None
+    name: Optional[str] = None
+    category: Optional[str] = None
+    price: Optional[int] = None
+    compare_at_price: Optional[int] = None
+    description: Optional[str] = None
+    fabric: Optional[str] = None
+    care: Optional[str] = None
+    fit_notes: Optional[str] = None
+    occasion: Optional[List[str]] = None
+    sizes: Optional[List[str]] = None
+    colors: Optional[List[str]] = None
+    color_hex: Optional[List[str]] = None
+    images: Optional[List[str]] = None
+    stock: Optional[int] = None
+    is_bestseller: Optional[bool] = None
+    is_new: Optional[bool] = None
+    is_navratri: Optional[bool] = None
+    is_active: Optional[bool] = None
+    navratri_day: Optional[str] = None
+    edit_tag: Optional[str] = None
 
 
 class OrderItem(BaseModel):
@@ -85,8 +143,12 @@ class Order(OrderCreate):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     order_number: str = Field(default_factory=lambda: "RE" + uuid.uuid4().hex[:8].upper())
-    status: str = "confirmed"
+    status: str = "confirmed"  # confirmed | dispatched | delivered | cancelled
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class OrderStatusUpdate(BaseModel):
+    status: str
 
 
 class SubscribeCreate(BaseModel):
@@ -101,276 +163,35 @@ class Subscriber(SubscribeCreate):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
-class ContactMessage(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+class ContactCreate(BaseModel):
     name: str
     email: str
     phone: Optional[str] = None
     message: str
+
+
+class ContactMessage(ContactCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
-# ---------- Seed data ----------
-SEED_PRODUCTS = [
-    # LEHENGAS
-    {
-        "slug": "amrapali-maroon-lehenga",
-        "name": "Amrapali Maroon Zardozi Lehenga",
-        "category": "lehengas",
-        "price": 4499,
-        "compare_at_price": 5200,
-        "description": "A regal maroon lehenga with delicate zardozi hand-embroidery on the border. Cut for movement — twirls beautifully on the dance floor without weighing you down.",
-        "fabric": "Silk blend with cotton lining. Dupatta in soft net.",
-        "care": "Dry clean only. Store folded with muslin cloth. Avoid direct sunlight.",
-        "fit_notes": "True to size. Blouse has 4 inch margin on sides for alterations.",
-        "occasion": ["Wedding", "Sangeet", "Reception"],
-        "sizes": ["XS", "S", "M", "L", "XL"],
-        "colors": ["Maroon"],
-        "color_hex": ["#7E1F35"],
-        "images": [
-            "https://images.unsplash.com/photo-1654764746225-e63f5e90facd?w=1200",
-            "https://images.unsplash.com/photo-1677691257363-eebd2abeafec?w=1200",
-            "https://images.unsplash.com/photo-1668371459824-094a960a227d?w=1200",
-        ],
-        "stock": 3,
-        "is_bestseller": True,
-        "is_navratri": True,
-        "edit_tag": "Family Function",
-    },
-    {
-        "slug": "chandani-ivory-mirror-lehenga",
-        "name": "Chandani Ivory Mirror-Work Lehenga",
-        "category": "lehengas",
-        "price": 3899,
-        "description": "Ivory base with tiny mirror-work scattered like stars. The soft palette makes the mirrors sparkle without shouting. A quiet showstopper.",
-        "fabric": "Cotton silk with mirror & thread embroidery. Chiffon dupatta.",
-        "care": "Dry clean recommended. Iron on reverse.",
-        "fit_notes": "Runs true to size. Elastic waist has 3 inch stretch.",
-        "occasion": ["Garba", "Navratri", "Mehendi"],
-        "sizes": ["S", "M", "L", "XL"],
-        "colors": ["Ivory"],
-        "color_hex": ["#F3EDE4"],
-        "images": [
-            "https://images.unsplash.com/photo-1503160865267-af4660ce7bf2?w=1200",
-            "https://images.unsplash.com/photo-1610030006432-9daf1a8b4dcd?w=1200",
-        ],
-        "stock": 6,
-        "is_bestseller": True,
-        "is_navratri": True,
-        "navratri_day": "Day 5 - White",
-        "edit_tag": "Garba Ready",
-    },
-    {
-        "slug": "phulwari-mustard-lehenga",
-        "name": "Phulwari Mustard Gota Lehenga",
-        "category": "lehengas",
-        "price": 3299,
-        "description": "Warm mustard with fine gota-patti border in a floral vine pattern. Feels like Rajasthan afternoons — bright, honest, unforgettable.",
-        "fabric": "Cotton silk. Gota-patti embroidery. Net dupatta.",
-        "care": "Dry clean. Store in dust cover.",
-        "fit_notes": "Slightly loose at the waist — order one size down if between sizes.",
-        "occasion": ["Haldi", "Navratri", "Day event"],
-        "sizes": ["XS", "S", "M", "L"],
-        "colors": ["Mustard"],
-        "color_hex": ["#DCA537"],
-        "images": [
-            "https://images.unsplash.com/photo-1610030181087-540017dc9d61?w=1200",
-            "https://images.unsplash.com/photo-1610030006432-9daf1a8b4dcd?w=1200",
-        ],
-        "stock": 4,
-        "is_new": True,
-        "is_navratri": True,
-        "navratri_day": "Day 2 - Yellow",
-        "edit_tag": "Garba Ready",
-    },
-    {
-        "slug": "rangeela-teal-lehenga",
-        "name": "Rangeela Teal Bandhani Lehenga",
-        "category": "lehengas",
-        "price": 2899,
-        "description": "Deep teal bandhani lehenga tied by Kutch artisans. Every dot is hand-knotted. A piece of Gujarat you wear.",
-        "fabric": "Pure cotton bandhani. Handloom.",
-        "care": "First wash separately in cold water. Do not bleach.",
-        "fit_notes": "True to size. Two adjustable dori knots at waist.",
-        "occasion": ["Navratri", "Garba", "Festival"],
-        "sizes": ["S", "M", "L", "XL", "XXL"],
-        "colors": ["Teal"],
-        "color_hex": ["#185D64"],
-        "images": [
-            "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=1200",
-        ],
-        "stock": 2,
-        "is_navratri": True,
-        "navratri_day": "Day 4 - Green",
-        "edit_tag": "Garba Ready",
-    },
-    # KURTIS
-    {
-        "slug": "meher-maroon-kurti",
-        "name": "Meher Maroon Chikankari Kurti",
-        "category": "kurtis",
-        "price": 1599,
-        "compare_at_price": 1899,
-        "description": "Deep maroon kurti with fine chikankari from Lucknow. Long enough for confidence, breathable enough for a long day.",
-        "fabric": "Cotton lawn. Hand chikankari embroidery.",
-        "care": "Hand wash in cold water. Line dry in shade.",
-        "fit_notes": "True to size. Length 44 inches for M.",
-        "occasion": ["Daily", "Office", "Festive lunch"],
-        "sizes": ["XS", "S", "M", "L", "XL", "XXL"],
-        "colors": ["Maroon"],
-        "color_hex": ["#7E1F35"],
-        "images": [
-            "https://images.unsplash.com/photo-1708534246055-d7b149acb731?w=1200",
-            "https://images.unsplash.com/photo-1708534246051-7f47b279e94b?w=1200",
-        ],
-        "stock": 12,
-        "is_bestseller": True,
-    },
-    {
-        "slug": "gulnaar-magenta-kurti",
-        "name": "Gulnaar Magenta Anarkali Kurti",
-        "category": "kurtis",
-        "price": 2199,
-        "description": "A flared magenta anarkali with gota lace at the yoke. The kind of kurti that turns a regular Tuesday into an occasion.",
-        "fabric": "Rayon with cotton lining. Gota lace detail.",
-        "care": "Machine wash gentle. Iron medium heat.",
-        "fit_notes": "Slightly flared. Runs true to size.",
-        "occasion": ["Festive", "Party", "Sangeet"],
-        "sizes": ["S", "M", "L", "XL"],
-        "colors": ["Magenta"],
-        "color_hex": ["#98285D"],
-        "images": [
-            "https://images.unsplash.com/photo-1708534246051-7f47b279e94b?w=1200",
-            "https://images.unsplash.com/photo-1708534246055-d7b149acb731?w=1200",
-        ],
-        "stock": 8,
-        "is_bestseller": True,
-        "is_new": True,
-    },
-    {
-        "slug": "neel-blue-block-print-kurti",
-        "name": "Neel Indigo Block Print Kurti",
-        "category": "kurtis",
-        "price": 1299,
-        "description": "Hand block printed in Sanganer. The indigo deepens with every wash — a kurti that grows with you.",
-        "fabric": "Pure cotton. Natural indigo dye.",
-        "care": "First wash with rock salt in cold water. Colour may bleed initially — that's the mark of natural dye.",
-        "fit_notes": "True to size. A-line silhouette.",
-        "occasion": ["Daily", "Casual", "Office"],
-        "sizes": ["XS", "S", "M", "L", "XL", "XXL"],
-        "colors": ["Indigo"],
-        "color_hex": ["#1E3A5F"],
-        "images": [
-            "https://images.pexels.com/photos/13178920/pexels-photo-13178920.jpeg?w=1200",
-        ],
-        "stock": 15,
-        "is_new": True,
-    },
-    {
-        "slug": "kesari-mustard-embroidered-kurti",
-        "name": "Kesari Mustard Embroidered Kurti",
-        "category": "kurtis",
-        "price": 1799,
-        "description": "Sunny mustard with resham thread embroidery in floral motifs. Bright enough for photos, comfortable enough for the whole function.",
-        "fabric": "Cotton silk. Resham thread work.",
-        "care": "Dry clean or hand wash cold.",
-        "fit_notes": "True to size. Straight cut.",
-        "occasion": ["Haldi", "Day event", "Festive"],
-        "sizes": ["S", "M", "L", "XL"],
-        "colors": ["Mustard"],
-        "color_hex": ["#DCA537"],
-        "images": [
-            "https://images.unsplash.com/photo-1764740146693-4955d02c98f9?w=1200",
-        ],
-        "stock": 7,
-        "is_navratri": True,
-        "navratri_day": "Day 2 - Yellow",
-        "edit_tag": "Garba Ready",
-    },
-    # SUITS
-    {
-        "slug": "saanjh-teal-suit",
-        "name": "Saanjh Teal Palazzo Suit",
-        "category": "suits",
-        "price": 2499,
-        "description": "Three-piece teal suit with palazzo pants and a chiffon dupatta. Effortless for family gatherings — feels dressed up without trying.",
-        "fabric": "Cotton silk kurta. Cotton palazzo. Chiffon dupatta.",
-        "care": "Dry clean recommended. Iron dupatta on low.",
-        "fit_notes": "Kurta runs true to size. Palazzo has drawstring waist.",
-        "occasion": ["Family function", "Festive", "Office festive"],
-        "sizes": ["S", "M", "L", "XL", "XXL"],
-        "colors": ["Teal"],
-        "color_hex": ["#185D64"],
-        "images": [
-            "https://images.unsplash.com/photo-1764740146693-4955d02c98f9?w=1200",
-        ],
-        "stock": 6,
-        "is_bestseller": True,
-    },
-    {
-        "slug": "raabta-ivory-suit",
-        "name": "Raabta Ivory Sharara Suit",
-        "category": "suits",
-        "price": 3499,
-        "description": "Ivory kurta with silver zari on the yoke, paired with flared sharara. Understated luxury — the piece your family will remember years later.",
-        "fabric": "Georgette kurta with zari. Georgette sharara. Net dupatta with sequin border.",
-        "care": "Dry clean only.",
-        "fit_notes": "Kurta length 38 inches. Sharara true to size.",
-        "occasion": ["Nikah", "Reception", "Sangeet"],
-        "sizes": ["S", "M", "L", "XL"],
-        "colors": ["Ivory"],
-        "color_hex": ["#F3EDE4"],
-        "images": [
-            "https://images.unsplash.com/photo-1677691257363-eebd2abeafec?w=1200",
-        ],
-        "stock": 4,
-        "is_new": True,
-    },
-    {
-        "slug": "mehr-magenta-suit",
-        "name": "Mehr Magenta Straight Suit",
-        "category": "suits",
-        "price": 2199,
-        "description": "A magenta straight-cut suit with contrast mustard piping and dupatta. Warm colour combination rooted in old-school Surat sensibility.",
-        "fabric": "Cotton silk. Contrast piping detail.",
-        "care": "Hand wash cold. Iron medium heat.",
-        "fit_notes": "Straight cut. Runs slightly loose — order one size down if between sizes.",
-        "occasion": ["Festive", "Family lunch", "Diwali"],
-        "sizes": ["XS", "S", "M", "L", "XL"],
-        "colors": ["Magenta"],
-        "color_hex": ["#98285D"],
-        "images": [
-            "https://images.unsplash.com/photo-1708534246051-7f47b279e94b?w=1200",
-        ],
-        "stock": 9,
-        "is_bestseller": True,
-    },
-    {
-        "slug": "noor-maroon-anarkali-suit",
-        "name": "Noor Maroon Anarkali Suit",
-        "category": "suits",
-        "price": 3899,
-        "description": "A floor-grazing maroon anarkali with gold zari all-over. Cut with a fitted bodice and a full flare — designed to move like a memory.",
-        "fabric": "Silk blend with zari. Silk lining. Net dupatta.",
-        "care": "Dry clean only.",
-        "fit_notes": "Fitted bust and waist. Length 52 inches.",
-        "occasion": ["Wedding", "Reception", "Diwali"],
-        "sizes": ["S", "M", "L", "XL"],
-        "colors": ["Maroon"],
-        "color_hex": ["#7E1F35"],
-        "images": [
-            "https://images.unsplash.com/photo-1654764746225-e63f5e90facd?w=1200",
-        ],
-        "stock": 3,
-        "is_navratri": True,
-        "navratri_day": "Day 6 - Red",
-        "edit_tag": "Family Function",
-    },
-]
+class LoginPayload(BaseModel):
+    email: str
+    password: str
 
 
-# ---------- Routes ----------
+# ---------- Helpers ----------
+def slugify(name: str) -> str:
+    import re
+    s = name.lower().strip()
+    s = re.sub(r"[^\w\s-]", "", s)
+    s = re.sub(r"[\s_-]+", "-", s)
+    s = re.sub(r"^-+|-+$", "", s)
+    return s
+
+
+# ---------- Public routes ----------
 @api_router.get("/")
 async def root():
     return {"message": "Rari Ethnic API"}
@@ -383,7 +204,7 @@ async def list_products(
     is_navratri: Optional[bool] = None,
     is_new: Optional[bool] = None,
 ):
-    query = {}
+    query = {"is_active": {"$ne": False}}
     if category:
         query["category"] = category
     if is_bestseller is not None:
@@ -392,7 +213,7 @@ async def list_products(
         query["is_navratri"] = is_navratri
     if is_new is not None:
         query["is_new"] = is_new
-    docs = await db.products.find(query, {"_id": 0}).to_list(500)
+    docs = await db.products.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
     for d in docs:
         if isinstance(d.get("created_at"), str):
             d["created_at"] = datetime.fromisoformat(d["created_at"])
@@ -414,7 +235,6 @@ async def create_order(payload: OrderCreate):
     order = Order(**payload.model_dump())
     doc = order.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
-    # serialize nested items to plain dicts
     doc["items"] = [i if isinstance(i, dict) else i.model_dump() for i in doc["items"]]
     await db.orders.insert_one(doc)
     return order
@@ -442,30 +262,196 @@ async def subscribe(payload: SubscribeCreate):
 
 
 @api_router.post("/contact", response_model=ContactMessage)
-async def create_contact(payload: dict):
-    msg = ContactMessage(**payload)
+async def create_contact(payload: ContactCreate):
+    msg = ContactMessage(**payload.model_dump())
     doc = msg.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
     await db.contact_messages.insert_one(doc)
     return msg
 
 
-# ---------- Startup: seed if empty ----------
-@app.on_event("startup")
-async def seed_products():
+# Public file server (product images are public)
+@api_router.get("/files/{path:path}")
+async def download_file(path: str):
     try:
-        count = await db.products.count_documents({})
-        if count == 0:
-            docs = []
-            for p in SEED_PRODUCTS:
-                product = Product(**p)
-                d = product.model_dump()
-                d["created_at"] = d["created_at"].isoformat()
-                docs.append(d)
-            await db.products.insert_many(docs)
-            logging.info(f"Seeded {len(docs)} products")
+        data, ct = get_object(path)
+        return Response(content=data, media_type=ct, headers={"Cache-Control": "public, max-age=31536000"})
     except Exception as e:
-        logging.error(f"Seed error: {e}")
+        raise HTTPException(status_code=404, detail=f"File not found: {e}")
+
+
+# ---------- Auth ----------
+@api_router.post("/auth/login")
+async def login(payload: LoginPayload):
+    admin_email = os.environ["ADMIN_EMAIL"].strip().lower()
+    email = payload.email.strip().lower()
+    if email != admin_email:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    admin = await db.users.find_one({"email": admin_email})
+    if not admin or not verify_password(payload.password, admin["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    token = create_access_token(admin_email)
+    return {"access_token": token, "token_type": "bearer", "email": admin_email, "role": "admin"}
+
+
+@api_router.get("/auth/me")
+async def me(user=Depends(require_admin)):
+    return {"email": user.get("email"), "role": user.get("role")}
+
+
+# ---------- Admin: Products ----------
+@api_router.post("/admin/products", response_model=Product)
+async def admin_create_product(payload: ProductCreate, user=Depends(require_admin)):
+    data = payload.model_dump()
+    if not data.get("slug"):
+        base = slugify(data["name"])
+        slug = base
+        i = 1
+        while await db.products.find_one({"slug": slug}):
+            i += 1
+            slug = f"{base}-{i}"
+        data["slug"] = slug
+    else:
+        if await db.products.find_one({"slug": data["slug"]}):
+            raise HTTPException(status_code=409, detail="Slug already exists")
+    product = Product(**data)
+    doc = product.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.products.insert_one(doc)
+    return product
+
+
+@api_router.put("/admin/products/{product_id}", response_model=Product)
+async def admin_update_product(product_id: str, payload: ProductUpdate, user=Depends(require_admin)):
+    updates = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v is not None}
+    if "slug" in updates:
+        existing = await db.products.find_one({"slug": updates["slug"], "id": {"$ne": product_id}})
+        if existing:
+            raise HTTPException(status_code=409, detail="Slug already exists")
+    r = await db.products.update_one({"id": product_id}, {"$set": updates})
+    if r.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Product not found")
+    doc = await db.products.find_one({"id": product_id}, {"_id": 0})
+    if isinstance(doc.get("created_at"), str):
+        doc["created_at"] = datetime.fromisoformat(doc["created_at"])
+    return doc
+
+
+@api_router.delete("/admin/products/{product_id}")
+async def admin_delete_product(product_id: str, user=Depends(require_admin)):
+    r = await db.products.delete_one({"id": product_id})
+    if r.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return {"deleted": True}
+
+
+@api_router.get("/admin/products", response_model=List[Product])
+async def admin_list_products(user=Depends(require_admin)):
+    docs = await db.products.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    for d in docs:
+        if isinstance(d.get("created_at"), str):
+            d["created_at"] = datetime.fromisoformat(d["created_at"])
+    return docs
+
+
+# ---------- Admin: Orders ----------
+@api_router.get("/admin/orders", response_model=List[Order])
+async def admin_list_orders(user=Depends(require_admin)):
+    docs = await db.orders.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    for d in docs:
+        if isinstance(d.get("created_at"), str):
+            d["created_at"] = datetime.fromisoformat(d["created_at"])
+    return docs
+
+
+@api_router.patch("/admin/orders/{order_number}")
+async def admin_update_order(order_number: str, payload: OrderStatusUpdate, user=Depends(require_admin)):
+    valid = {"confirmed", "dispatched", "delivered", "cancelled"}
+    if payload.status not in valid:
+        raise HTTPException(status_code=400, detail=f"Status must be one of {valid}")
+    r = await db.orders.update_one({"order_number": order_number}, {"$set": {"status": payload.status}})
+    if r.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return {"updated": True, "status": payload.status}
+
+
+# ---------- Admin: Subscribers ----------
+@api_router.get("/admin/subscribers")
+async def admin_list_subscribers(user=Depends(require_admin)):
+    docs = await db.subscribers.find({}, {"_id": 0}).sort("created_at", -1).to_list(2000)
+    return docs
+
+
+@api_router.get("/admin/contact-messages")
+async def admin_list_contact(user=Depends(require_admin)):
+    docs = await db.contact_messages.find({}, {"_id": 0}).sort("created_at", -1).to_list(2000)
+    return docs
+
+
+# ---------- Admin: Upload ----------
+@api_router.post("/admin/upload")
+async def admin_upload(file: UploadFile = File(...), user=Depends(require_admin)):
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename")
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "bin"
+    if ext not in {"jpg", "jpeg", "png", "webp", "gif"}:
+        raise HTTPException(status_code=400, detail="Only image files allowed")
+    data = await file.read()
+    if len(data) > 10 * 1024 * 1024:  # 10 MB
+        raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
+    path = f"{APP_NAME}/products/{uuid.uuid4()}.{ext}"
+    content_type = file.content_type or guess_content_type(file.filename, "image/jpeg")
+    try:
+        result = put_object(path, data, content_type)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Upload failed: {e}")
+    # Return a URL that points to our own /api/files/{path} endpoint (public)
+    backend = os.environ.get("BACKEND_PUBLIC_URL", "")
+    stored_path = result["path"]
+    return {
+        "path": stored_path,
+        "url": f"/api/files/{stored_path}",
+        "size": result.get("size"),
+    }
+
+
+# ---------- Startup: seed products + admin ----------
+@app.on_event("startup")
+async def startup_tasks():
+    # Try init storage (non-fatal)
+    try:
+        init_storage()
+    except Exception as e:
+        logging.warning(f"Storage init failed at startup (will retry on demand): {e}")
+
+    # Seed admin
+    try:
+        admin_email = os.environ["ADMIN_EMAIL"].strip().lower()
+        admin_password = os.environ["ADMIN_PASSWORD"]
+        existing = await db.users.find_one({"email": admin_email})
+        if existing is None:
+            await db.users.insert_one({
+                "id": str(uuid.uuid4()),
+                "email": admin_email,
+                "password_hash": hash_password(admin_password),
+                "role": "admin",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+            logging.info(f"Seeded admin user: {admin_email}")
+        elif not verify_password(admin_password, existing["password_hash"]):
+            await db.users.update_one(
+                {"email": admin_email},
+                {"$set": {"password_hash": hash_password(admin_password)}}
+            )
+            logging.info("Updated admin password hash from .env")
+    except Exception as e:
+        logging.error(f"Admin seed failed: {e}")
+
+    # Ensure existing products have is_active flag
+    try:
+        await db.products.update_many({"is_active": {"$exists": False}}, {"$set": {"is_active": True}})
+    except Exception as e:
+        logging.error(f"Product backfill failed: {e}")
 
 
 app.include_router(api_router)
@@ -482,7 +468,6 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger(__name__)
 
 
 @app.on_event("shutdown")

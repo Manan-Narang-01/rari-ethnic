@@ -170,6 +170,15 @@ body {
     );
 }
 
+/* Festive mode — Navratri page overrides */
+body.festive-mode {
+    background: #3e0714;
+}
+body.festive-mode ::selection {
+    background: #f4c842;
+    color: #3e0714;
+}
+
 @layer base {
     * {
         @apply border-border;
