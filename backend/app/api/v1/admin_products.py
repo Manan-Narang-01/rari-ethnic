@@ -13,6 +13,14 @@ async def admin_list_products():
     return await ProductRepository.list_all()
 
 
+@router.get("/{product_id}", response_model=Product)
+async def admin_get_product(product_id: str):
+    product = await ProductRepository.get_by_id(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
+
+
 @router.post("", response_model=Product)
 async def admin_create_product(payload: ProductCreate):
     return await ProductService.create(payload)

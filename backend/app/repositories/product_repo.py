@@ -68,6 +68,7 @@ class ProductRepository:
         await cls._collection().create_index("slug", unique=True)
         await cls._collection().create_index("id", unique=True)
         await cls._collection().create_index("category")
+        await cls._collection().create_index([("is_active", 1), ("category", 1), ("created_at", -1)])
 
 
 def _coerce_created_at(doc: dict) -> dict:

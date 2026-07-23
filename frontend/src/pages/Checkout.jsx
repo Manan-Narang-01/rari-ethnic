@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link, Navigate } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
-import { useCustomerAuth } from "@/context/CustomerAuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { api, formatINR } from "@/lib/api";
 import { Check, ChevronLeft, Truck, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -10,7 +10,7 @@ const STEPS = ["Contact", "Address", "Payment"];
 
 export const Checkout = () => {
   const { items, subtotal, shipping, total, clear } = useCart();
-  const { customer, isAuthenticated, loading: authLoading } = useCustomerAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -29,14 +29,14 @@ export const Checkout = () => {
 
   // Prefill name/email from the signed-in Google account.
   useEffect(() => {
-    if (customer) {
+    if (user) {
       setForm((f) => ({
         ...f,
-        customer_name: f.customer_name || customer.name || "",
-        email: f.email || customer.email || "",
+        customer_name: f.customer_name || user.name || "",
+        email: f.email || user.email || "",
       }));
     }
-  }, [customer]);
+  }, [user]);
 
   const setField = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
@@ -124,7 +124,6 @@ export const Checkout = () => {
           <ChevronLeft size={14} /> Continue shopping
         </Link>
         <h1 className="font-display text-4xl mt-4">Checkout</h1>
-        <p className="text-sm text-[#6E7B85]">Guest checkout · No account needed</p>
 
         {/* Stepper */}
         <div className="flex items-center gap-2 mt-8 max-w-md" data-testid="checkout-stepper">

@@ -7,6 +7,8 @@ from app import database
 from app.api.v1.router import api_router
 from app.config import settings
 from app.core.security import hash_password, verify_password
+from app.repositories.cart_repo import CartRepository
+from app.repositories.category_repo import CategoryRepository
 from app.repositories.order_repo import OrderRepository
 from app.repositories.password_reset_repo import PasswordResetRepository
 from app.repositories.product_repo import ProductRepository
@@ -61,6 +63,8 @@ async def startup_tasks():
         await PasswordResetRepository.ensure_indexes()
         await ProductRepository.ensure_indexes()
         await OrderRepository.ensure_indexes()
+        await CategoryRepository.ensure_indexes()
+        await CartRepository.ensure_indexes()
     except Exception as e:
         logger.error("Index creation failed: %s", e)
 
@@ -70,6 +74,12 @@ async def startup_tasks():
         await UserRepository.backfill_defaults()
     except Exception as e:
         logger.error("User seed/backfill failed: %s", e)
+
+    try:
+        await CategoryRepository.ensure_defaults()
+        await CategoryRepository.backfill_defaults()
+    except Exception as e:
+        logger.error("Category seed/backfill failed: %s", e)
 
     try:
         await ProductRepository.backfill_defaults()

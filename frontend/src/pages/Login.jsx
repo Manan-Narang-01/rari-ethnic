@@ -1,29 +1,56 @@
 import { useState } from "react";
 import { Navigate, useNavigate, useSearchParams, Link } from "react-router-dom";
-import { useCustomerAuth } from "@/context/CustomerAuthContext";
+import { useAuth, isStaffRole } from "@/context/AuthContext";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { GOOGLE_CLIENT_ID } from "@/lib/api";
+import { LOGIN } from "@/constants/testIds/auth";
 import { ShieldCheck, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 
+// Where to land after sign-in when the caller didn't ask for a specific
+// page via ?next= — customers go to their account, staff to the dashboard.
+const defaultDest = (user) => (isStaffRole(user?.role) ? "/admin" : "/account");
+
 export const Login = () => {
-  const { isAuthenticated, loginWithGoogle, devLogin, loading } = useCustomerAuth();
+  const { isAuthenticated, user, login, loginWithGoogle, devLogin, loading } = useAuth();
   const [params] = useSearchParams();
   const nav = useNavigate();
   const [busy, setBusy] = useState(false);
   const [devEmail, setDevEmail] = useState("");
-  const next = params.get("next") || "/account";
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const explicitNext = params.get("next");
+  const next = explicitNext || "/account";
+  const nextQuery = next !== "/account" ? `?next=${encodeURIComponent(next)}` : "";
   const googleConfigured = !!GOOGLE_CLIENT_ID;
 
   if (loading) return <div className="container-x py-24 text-center text-[#6E7B85]">Loading…</div>;
-  if (isAuthenticated) return <Navigate to={next} replace />;
+  if (isAuthenticated) return <Navigate to={explicitNext || defaultDest(user)} replace />;
+
+  const handlePasswordLogin = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const loggedInUser = await login(email.trim(), password);
+      toast.success("Signed in");
+      nav(explicitNext || defaultDest(loggedInUser), { replace: true });
+    } catch (err) {
+      const msg =
+        typeof err?.response?.data?.detail === "string"
+          ? err.response.data.detail
+          : "Invalid email or password";
+      toast.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const handleCredential = async (credential) => {
     setBusy(true);
     try {
-      await loginWithGoogle(credential);
+      const loggedInUser = await loginWithGoogle(credential);
       toast.success("Signed in");
-      nav(next, { replace: true });
+      nav(explicitNext || defaultDest(loggedInUser), { replace: true });
     } catch (err) {
       const msg =
         typeof err?.response?.data?.detail === "string"
@@ -40,9 +67,9 @@ export const Login = () => {
     if (!devEmail.includes("@")) return toast.error("Enter a valid email");
     setBusy(true);
     try {
-      await devLogin(devEmail.trim());
+      const loggedInUser = await devLogin(devEmail.trim());
       toast.success("Signed in (test mode)");
-      nav(next, { replace: true });
+      nav(explicitNext || defaultDest(loggedInUser), { replace: true });
     } catch (err) {
       const msg =
         typeof err?.response?.data?.detail === "string"
@@ -67,7 +94,60 @@ export const Login = () => {
             You can browse freely — an account is only needed to place an order.
           </p>
 
-          <div className="mt-8 flex justify-center">
+          <form onSubmit={handlePasswordLogin} data-testid="login-password-form" className="mt-8 text-left space-y-4">
+            <div>
+              <label className="label-caps text-[#2A2E30]">Email</label>
+              <input
+                required
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                data-testid={LOGIN.emailInput}
+                className="w-full mt-1 border-b border-[#2A2E30]/25 bg-transparent py-2 outline-none focus:border-[#A0684E]"
+              />
+            </div>
+            <div>
+              <label className="label-caps text-[#2A2E30]">Password</label>
+              <input
+                required
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                data-testid={LOGIN.passwordInput}
+                className="w-full mt-1 border-b border-[#2A2E30]/25 bg-transparent py-2 outline-none focus:border-[#A0684E]"
+              />
+            </div>
+            <div className="flex justify-end">
+              <Link
+                to={`/forgot-password${nextQuery}`}
+                data-testid={LOGIN.forgotPasswordLink}
+                className="text-xs text-[#A0684E] hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
+            <button
+              type="submit"
+              disabled={busy}
+              data-testid={LOGIN.submitButton}
+              className="w-full bg-[#2A2E30] text-[#E8E3D7] py-3.5 rounded-sm uppercase tracking-[0.2em] text-xs hover:bg-[#A0684E] transition-colors disabled:opacity-60"
+            >
+              {busy ? "Signing in…" : "Sign in"}
+            </button>
+          </form>
+
+          <div className="mt-4 text-sm text-[#6E7B85]">
+            New here?{" "}
+            <Link to={`/register${nextQuery}`} data-testid={LOGIN.registerLink} className="text-[#A0684E] hover:underline">
+              Create an account
+            </Link>
+          </div>
+
+          <div className="mt-8 pt-8 border-t border-[#2A2E30]/10 flex items-center gap-3 text-[11px] uppercase tracking-widest text-[#6E7B85]">
+            <span className="flex-1 h-px bg-[#2A2E30]/10" /> or <span className="flex-1 h-px bg-[#2A2E30]/10" />
+          </div>
+
+          <div className="mt-6 flex justify-center">
             {busy ? (
               <span className="text-sm text-[#6E7B85]">Signing you in…</span>
             ) : googleConfigured ? (

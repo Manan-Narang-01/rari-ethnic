@@ -4,16 +4,20 @@ import { api, buildWaLink, INSTAGRAM_URL } from "@/lib/api";
 import { useSite } from "@/context/SiteContext";
 import { ProductCard } from "@/components/ProductCard";
 import { CountdownTimer } from "@/components/CountdownTimer";
+import { images } from "@/assets/images";
 import { ArrowRight, Sparkles, Truck, ShieldCheck, HandHeart, Instagram } from "lucide-react";
 
 // Maps admin-configured icon names to lucide components.
 const ICONS = { HandHeart, ShieldCheck, Truck, Sparkles };
 
 const FALLBACK_CATEGORIES = [
-  { key: "kurtis", name: "Kurtis", tag: "Everyday to festive", image: "https://images.unsplash.com/photo-1708534246055-d7b149acb731?w=1200", color: "#A0684E" },
-  { key: "suits", name: "Suits", tag: "Palazzo, Sharara & more", image: "https://images.unsplash.com/photo-1764740146693-4955d02c98f9?w=1200", color: "#7B6E5A" },
-  { key: "lehengas", name: "Lehengas", tag: "For the big days", image: "https://images.unsplash.com/photo-1503160865267-af4660ce7bf2?w=1200", color: "#A05B6A" },
+  { key: "kurtis", name: "Kurtis", tag: "Everyday to festive", image: images.home.categories.kurtis, color: "#A0684E" },
+  { key: "suits", name: "Suits", tag: "Palazzo, Sharara & more", image: images.home.categories.suits, color: "#7B6E5A" },
+  { key: "lehengas", name: "Lehengas", tag: "For the big days", image: images.home.categories.lehengas, color: "#A05B6A" },
 ];
+
+// Category documents have no color field of their own -- cycled for tile variety.
+const CATEGORY_TILE_COLORS = ["#A0684E", "#7B6E5A", "#A05B6A", "#B58D3E"];
 
 const FALLBACK_WHYS = [
   { icon: "HandHeart", title: "Fabric-first", copy: "Sourced from Surat mills we've known for years." },
@@ -26,29 +30,40 @@ export const Home = () => {
   const { settings, campaign } = useSite();
   const [bestsellers, setBestsellers] = useState([]);
   const [newArrivals, setNewArrivals] = useState([]);
+  const [categoryTiles, setCategoryTiles] = useState(FALLBACK_CATEGORIES);
 
   useEffect(() => {
     api.get("/products", { params: { is_bestseller: true } }).then((r) => setBestsellers(r.data));
     api.get("/products", { params: { is_new: true } }).then((r) => setNewArrivals(r.data));
+    api
+      .get("/categories")
+      .then((r) => {
+        const catalogCategories = r.data.filter((c) => c.show_in_catalog);
+        setCategoryTiles(
+          catalogCategories.length
+            ? catalogCategories.map((c, i) => ({
+                key: c.key,
+                name: c.name,
+                tag: c.description || "",
+                image: c.image || images.home.categories[c.key] || images.home.hero,
+                color: CATEGORY_TILE_COLORS[i % CATEGORY_TILE_COLORS.length],
+              }))
+            : FALLBACK_CATEGORIES
+        );
+      })
+      .catch(() => setCategoryTiles(FALLBACK_CATEGORIES));
   }, []);
 
   const hero = settings?.home_hero;
-  const CATEGORIES = settings?.home_categories?.length ? settings.home_categories : FALLBACK_CATEGORIES;
+  const CATEGORIES = categoryTiles;
   const WHYS = settings?.home_why?.length ? settings.home_why : FALLBACK_WHYS;
-  const instaTiles = settings?.instagram_tiles?.length
-    ? settings.instagram_tiles
-    : [
-        "https://images.unsplash.com/photo-1503160865267-af4660ce7bf2?w=600",
-        "https://images.unsplash.com/photo-1708534246055-d7b149acb731?w=600",
-        "https://images.pexels.com/photos/13178920/pexels-photo-13178920.jpeg?w=600",
-        "https://images.unsplash.com/photo-1764740146693-4955d02c98f9?w=600",
-      ];
+  const instaTiles = settings?.instagram_tiles?.length ? settings.instagram_tiles : images.home.instagram;
   const instagramUrl = settings?.instagram_url || INSTAGRAM_URL;
   const heroEyebrow = hero?.eyebrow || "Navratri Collection · 2026";
   const heroTitleLines = hero?.title_lines?.length ? hero.title_lines : ["Handcrafted", "for the days", "that matter."];
   const heroSubtitle = hero?.subtitle ||
     "Lehengas, kurtis and suits stitched with intention — for Garba nights, family functions and the quiet mornings before them. From our Surat studio to your doorstep.";
-  const heroImage = hero?.image || "https://images.unsplash.com/photo-1654764746225-e63f5e90facd?w=2000";
+  const heroImage = hero?.image || images.home.hero;
 
   return (
     <div className="bg-[#E8E3D7]">

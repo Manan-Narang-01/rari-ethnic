@@ -4,7 +4,6 @@ import { api, API } from "@/lib/api";
 import { toast } from "sonner";
 import { Upload, X, Loader2, ChevronLeft } from "lucide-react";
 
-const CATEGORIES = ["kurtis", "suits", "lehengas"];
 const ALL_SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 const OCCASIONS = ["Daily", "Office", "Festive", "Sangeet", "Wedding", "Reception", "Haldi", "Mehendi", "Garba", "Navratri", "Diwali", "Family function", "Nikah", "Party"];
 
@@ -35,22 +34,22 @@ export const AdminProductForm = ({ mode = "create" }) => {
   const { id } = useParams();
   const nav = useNavigate();
   const [form, setForm] = useState(emptyForm);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(mode === "edit");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
   useEffect(() => {
+    api.get("/admin/categories").then((r) => setCategories(r.data)).catch(() => toast.error("Could not load categories"));
+  }, []);
+
+  useEffect(() => {
     if (mode !== "edit" || !id) return;
     api
-      .get("/admin/products")
+      .get(`/admin/products/${id}`)
       .then((r) => {
-        const p = r.data.find((x) => x.id === id);
-        if (!p) {
-          toast.error("Product not found");
-          nav("/admin");
-          return;
-        }
+        const p = r.data;
         setForm({
           ...emptyForm,
           ...p,
@@ -60,7 +59,14 @@ export const AdminProductForm = ({ mode = "create" }) => {
           color_hex: (p.color_hex || []).join(", "),
         });
       })
-      .catch(() => toast.error("Load failed"))
+      .catch((err) => {
+        if (err?.response?.status === 404) {
+          toast.error("Product not found");
+          nav("/admin");
+          return;
+        }
+        toast.error("Load failed");
+      })
       .finally(() => setLoading(false));
   }, [id, mode, nav]);
 
@@ -251,7 +257,7 @@ export const AdminProductForm = ({ mode = "create" }) => {
             <div>
               <label className="label-caps">Category</label>
               <select value={form.category} onChange={setField("category")} data-testid="admin-category" className="w-full mt-1 border-b border-[#8B9A9F]/40 bg-transparent py-2 outline-none focus:border-[#A0684E]">
-                {CATEGORIES.map((c) => <option key={c} value={c}>{c[0].toUpperCase() + c.slice(1)}</option>)}
+                {categories.map((c) => <option key={c.id} value={c.key}>{c.name}</option>)}
               </select>
             </div>
             <Field label="Price ₹" type="number" value={form.price} onChange={setField("price")} testid="admin-price" required />

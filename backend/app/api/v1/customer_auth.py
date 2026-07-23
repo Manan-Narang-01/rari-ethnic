@@ -1,16 +1,18 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
-from app.api.deps import require_customer
 from app.config import settings
 from app.core.security import create_access_token
-from app.schemas.auth import CustomerOut, CustomerTokenResponse, DevLoginRequest, GoogleAuthPayload
+from app.schemas.auth import CustomerTokenResponse, DevLoginRequest, GoogleAuthPayload
 from app.services.auth_service import AuthService
 
 router = APIRouter(prefix="/customer", tags=["customer-auth"])
 
 
 def _customer_out(user: dict) -> dict:
-    return {"id": user["id"], "email": user["email"], "name": user["name"], "picture": user.get("picture")}
+    return {
+        "id": user["id"], "email": user["email"], "name": user["name"],
+        "picture": user.get("picture"), "role": user.get("role", "customer"),
+    }
 
 
 def _token_response(user: dict) -> dict:
@@ -36,8 +38,3 @@ async def customer_auth_config():
         "google_enabled": bool(settings.google_client_id),
         "dev_login_enabled": AuthService.dev_login_allowed(),
     }
-
-
-@router.get("/me", response_model=CustomerOut)
-async def me(user: dict = Depends(require_customer)):
-    return _customer_out(user)

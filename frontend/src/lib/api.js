@@ -3,8 +3,8 @@ import axios from "axios";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API = `${BACKEND_URL}/api`;
 
-export const ADMIN_TOKEN_KEY = "rari_admin_token";
-export const CUSTOMER_TOKEN_KEY = "rari_customer_token";
+export const AUTH_TOKEN_KEY = "rari_auth_token";
+export const AUTH_REFRESH_KEY = "rari_auth_refresh_token";
 export const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || "";
 
 export const api = axios.create({
@@ -12,14 +12,9 @@ export const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-// Attach the correct bearer token per request: admin routes use the admin
-// token, everything else (storefront + customer) uses the customer token.
+// One identity, one token, for the whole app (customer and staff alike).
 api.interceptors.request.use((config) => {
-  const url = config.url || "";
-  const isAdminRoute = url.startsWith("/admin") || url.startsWith("/auth");
-  const token = isAdminRoute
-    ? localStorage.getItem(ADMIN_TOKEN_KEY)
-    : localStorage.getItem(CUSTOMER_TOKEN_KEY);
+  const token = localStorage.getItem(AUTH_TOKEN_KEY);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   } else {

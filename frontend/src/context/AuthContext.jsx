@@ -1,11 +1,13 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { api, ADMIN_TOKEN_KEY } from "@/lib/api";
+import { api, AUTH_TOKEN_KEY, AUTH_REFRESH_KEY } from "@/lib/api";
+
+export const STAFF_ROLES = ["admin", "super_admin"];
+export const isStaffRole = (role) => STAFF_ROLES.includes(role);
 
 const AuthContext = createContext(null);
-const REFRESH_KEY = "rari_admin_refresh_token";
 
 export const AuthProvider = ({ children }) => {
-  const [token, setToken] = useState(() => localStorage.getItem(ADMIN_TOKEN_KEY));
+  const [token, setToken] = useState(() => localStorage.getItem(AUTH_TOKEN_KEY));
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -18,8 +20,8 @@ export const AuthProvider = ({ children }) => {
       .get("/auth/me")
       .then((r) => setUser(r.data))
       .catch(() => {
-        localStorage.removeItem(ADMIN_TOKEN_KEY);
-        localStorage.removeItem(REFRESH_KEY);
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+        localStorage.removeItem(AUTH_REFRESH_KEY);
         setToken(null);
       })
       .finally(() => setLoading(false));
@@ -27,26 +29,78 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const r = await api.post("/auth/login", { email, password });
-    localStorage.setItem(ADMIN_TOKEN_KEY, r.data.access_token);
-    localStorage.setItem(REFRESH_KEY, r.data.refresh_token);
+    localStorage.setItem(AUTH_TOKEN_KEY, r.data.access_token);
+    localStorage.setItem(AUTH_REFRESH_KEY, r.data.refresh_token);
     setToken(r.data.access_token);
     setUser(r.data.user);
-    return r.data;
+    return r.data.user;
+  };
+
+  const register = async (name, email, password, phone) => {
+    const r = await api.post("/auth/register", { name, email, password, phone });
+    localStorage.setItem(AUTH_TOKEN_KEY, r.data.access_token);
+    localStorage.setItem(AUTH_REFRESH_KEY, r.data.refresh_token);
+    setToken(r.data.access_token);
+    setUser(r.data.user);
+    return r.data.user;
+  };
+
+  // credential = Google Identity Services ID token. Always resolves to
+  // role="customer" for brand-new signups; an existing admin/super_admin
+  // signing in with their Google-linked email keeps their existing role.
+  const loginWithGoogle = async (credential) => {
+    const r = await api.post("/customer/google", { credential });
+    localStorage.setItem(AUTH_TOKEN_KEY, r.data.access_token);
+    setToken(r.data.access_token);
+    setUser(r.data.customer);
+    return r.data.customer;
+  };
+
+  // Passwordless test login — only works when Google isn't configured yet.
+  const devLogin = async (email, name) => {
+    const r = await api.post("/customer/dev-login", { email, name });
+    localStorage.setItem(AUTH_TOKEN_KEY, r.data.access_token);
+    setToken(r.data.access_token);
+    setUser(r.data.customer);
+    return r.data.customer;
+  };
+
+  const forgotPassword = async (email) => {
+    const r = await api.post("/auth/forgot-password", { email });
+    return r.data.message;
+  };
+
+  const resetPassword = async (token_, newPassword) => {
+    await api.post("/auth/reset-password", { token: token_, new_password: newPassword });
   };
 
   const logout = () => {
-    const refreshToken = localStorage.getItem(REFRESH_KEY);
+    const refreshToken = localStorage.getItem(AUTH_REFRESH_KEY);
     if (refreshToken) {
       api.post("/auth/logout", { refresh_token: refreshToken }).catch(() => {});
     }
-    localStorage.removeItem(ADMIN_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_KEY);
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_REFRESH_KEY);
     setToken(null);
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ token, user, login, logout, loading }}>
+    <AuthContext.Provider
+      value={{
+        token,
+        user,
+        isAuthenticated: !!user,
+        login,
+        register,
+        loginWithGoogle,
+        devLogin,
+        forgotPassword,
+        resetPassword,
+        logout,
+        loading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

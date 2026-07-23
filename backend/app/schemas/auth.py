@@ -33,11 +33,6 @@ class ResetPasswordRequest(BaseModel):
     new_password: str = Field(min_length=8)
 
 
-class ChangePasswordRequest(BaseModel):
-    current_password: str
-    new_password: str = Field(min_length=8)
-
-
 class UserOut(BaseModel):
     id: str
     name: str
@@ -70,6 +65,7 @@ class CustomerOut(BaseModel):
     email: str
     name: str
     picture: Optional[str] = None
+    role: str = "customer"
 
 
 class CustomerTokenResponse(BaseModel):

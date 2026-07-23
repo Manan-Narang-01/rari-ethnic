@@ -4,6 +4,7 @@ import { api } from "@/lib/api";
 import { useSite } from "@/context/SiteContext";
 import { ProductCard } from "@/components/ProductCard";
 import { CountdownTimer } from "@/components/CountdownTimer";
+import { images } from "@/assets/images";
 import { ArrowRight, Flame, Sparkles } from "lucide-react";
 
 const FALLBACK_DAYS = [
@@ -18,8 +19,8 @@ const FALLBACK_DAYS = [
   { day: 9, name: "Peacock Green", hex: "#0F6E5E", meaning: "Uniqueness" },
 ];
 
-const FALLBACK_HERO = "https://images.pexels.com/photos/28936373/pexels-photo-28936373.jpeg?auto=compress&cs=tinysrgb&w=1600";
-const FALLBACK_SECONDARY = "https://images.pexels.com/photos/29593203/pexels-photo-29593203.jpeg?auto=compress&cs=tinysrgb&w=1200";
+const FALLBACK_HERO = images.navratri.hero;
+const FALLBACK_SECONDARY = images.navratri.heroSecondary;
 
 export const NavratriLanding = () => {
   const { campaign } = useSite();

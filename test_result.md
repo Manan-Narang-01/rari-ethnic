@@ -144,7 +144,7 @@ backend:
           (now works for any role -- customer/admin/super_admin -- instead of the old
           admin-only hardcoded check), POST /api/auth/refresh (rotating, single-use refresh
           tokens backed by a revocable refresh_sessions collection), POST /api/auth/logout,
-          GET /api/auth/me, POST /api/auth/change-password, POST /api/auth/forgot-password +
+          GET /api/auth/me, POST /api/auth/forgot-password +
           POST /api/auth/reset-password (token is logged server-side for now since no email
           provider is wired up yet -- see roadmap). require_admin now accepts both admin and
           super_admin roles and re-reads the user from the DB on every request (so

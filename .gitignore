@@ -94,3 +94,7 @@ credentials.json
 # Stray npm lockfile (this project uses Yarn) and local Claude settings
 package-lock.json
 .claude/
+
+# Local-filesystem object storage (backend/app/utils/storage.py) -- dev-only,
+# swap for S3-compatible storage before deploying (see docs/DEPLOYMENT.md).
+backend/uploads/

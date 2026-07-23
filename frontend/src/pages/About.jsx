@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { images } from "@/assets/images";
 import { Sparkles, Scissors, MapPin, Users } from "lucide-react";
 
 export const About = () => {
@@ -28,7 +29,7 @@ export const About = () => {
           </div>
           <div className="relative aspect-[4/5] fade-up">
             <img
-              src="https://images.unsplash.com/photo-1677691257363-eebd2abeafec?w=1200"
+              src={images.about.story}
               alt="Rari Ethnic"
               className="w-full h-full object-cover"
             />
@@ -92,7 +93,7 @@ export const About = () => {
         </div>
         <div className="order-1 md:order-2 aspect-square relative">
           <img
-            src="https://images.unsplash.com/photo-1503160865267-af4660ce7bf2?w=1200"
+            src={images.about.fabric}
             alt="Fabric"
             className="w-full h-full object-cover"
           />

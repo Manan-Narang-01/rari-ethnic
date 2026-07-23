@@ -64,13 +64,6 @@ class AuthService:
         await SessionRepository.revoke(payload.get("jti", ""))
 
     @staticmethod
-    async def change_password(user: dict, current_password: str, new_password: str) -> None:
-        if not verify_password(current_password, user["password_hash"]):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Current password is incorrect")
-        await UserRepository.update_password(user["id"], hash_password(new_password))
-        await SessionRepository.revoke_all_for_user(user["id"])
-
-    @staticmethod
     async def request_password_reset(email: str) -> str:
         """Returns the raw reset token so the caller can email it. Silently
         returns None for unknown emails so account existence isn't leaked."""

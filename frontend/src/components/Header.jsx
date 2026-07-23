@@ -1,24 +1,45 @@
 import { Link, NavLink } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ShoppingBag, Menu, X, Instagram, User } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useSite } from "@/context/SiteContext";
-import { useCustomerAuth } from "@/context/CustomerAuthContext";
-import { INSTAGRAM_URL } from "@/lib/api";
+import { useAuth, isStaffRole } from "@/context/AuthContext";
+import { api, INSTAGRAM_URL } from "@/lib/api";
 
-const nav = [
+// Non-category nav entries, always shown after the dynamic category links.
+const STATIC_NAV_TAIL = [
+  { to: "/navratri", label: "Navratri", accent: true },
+  { to: "/about", label: "About" },
+];
+
+// Used only if the categories fetch fails or returns nothing — keeps the
+// navbar from ever rendering empty.
+const FALLBACK_NAV = [
   { to: "/shop/kurtis", label: "Kurtis" },
   { to: "/shop/suits", label: "Suits" },
   { to: "/shop/lehengas", label: "Lehengas" },
-  { to: "/navratri", label: "Navratri", accent: true },
-  { to: "/about", label: "About" },
+  ...STATIC_NAV_TAIL,
 ];
 
 export const Header = () => {
   const { count, setIsOpen } = useCart();
   const { settings } = useSite();
-  const { isAuthenticated, customer } = useCustomerAuth();
+  const { isAuthenticated, user } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [nav, setNav] = useState(FALLBACK_NAV);
+  const accountHref = isAuthenticated ? (isStaffRole(user?.role) ? "/admin" : "/account") : "/login";
+
+  useEffect(() => {
+    api
+      .get("/categories")
+      .then((r) => {
+        const categoryLinks = r.data
+          .filter((c) => c.show_in_navbar)
+          .map((c) => ({ to: `/shop/${c.key}`, label: c.name }));
+        setNav(categoryLinks.length ? [...categoryLinks, ...STATIC_NAV_TAIL] : FALLBACK_NAV);
+      })
+      .catch(() => setNav(FALLBACK_NAV));
+  }, []);
 
   const announcements =
     settings?.announcements?.length > 0
@@ -104,13 +125,13 @@ export const Header = () => {
             <Instagram size={18} strokeWidth={1.6} />
           </a>
           <Link
-            to={isAuthenticated ? "/account" : "/login"}
+            to={accountHref}
             aria-label={isAuthenticated ? "My account" : "Sign in"}
             data-testid="header-account"
             className="relative p-2 text-[#2A2E30] hover:text-[#A0684E] transition-colors"
           >
-            {isAuthenticated && customer?.picture ? (
-              <img src={customer.picture} alt="" referrerPolicy="no-referrer" className="w-6 h-6 rounded-full object-cover" />
+            {isAuthenticated && user?.picture ? (
+              <img src={user.picture} alt="" referrerPolicy="no-referrer" className="w-6 h-6 rounded-full object-cover" />
             ) : (
               <User size={20} strokeWidth={1.6} />
             )}
@@ -168,7 +189,7 @@ export const Header = () => {
               Size Guide
             </Link>
             <Link
-              to={isAuthenticated ? "/account" : "/login"}
+              to={accountHref}
               onClick={() => setMobileOpen(false)}
               className="font-display text-2xl py-2 px-2 text-[#A0684E]"
             >

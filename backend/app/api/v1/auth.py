@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends
 
 from app.api.deps import get_current_user
 from app.schemas.auth import (
-    ChangePasswordRequest,
     ForgotPasswordRequest,
     LoginRequest,
     LogoutRequest,
@@ -46,12 +45,6 @@ async def logout(payload: LogoutRequest):
 @router.get("/me", response_model=UserOut)
 async def me(user: dict = Depends(get_current_user)):
     return user
-
-
-@router.post("/change-password")
-async def change_password(payload: ChangePasswordRequest, user: dict = Depends(get_current_user)):
-    await AuthService.change_password(user, payload.current_password, payload.new_password)
-    return {"changed": True}
 
 
 @router.post("/forgot-password")

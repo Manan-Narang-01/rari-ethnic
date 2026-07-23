@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { api, buildWaLink, formatINR } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
 import { MessageCircle, Truck, ShieldCheck, RotateCcw, ChevronDown } from "lucide-react";
@@ -13,7 +13,8 @@ export const ProductDetail = () => {
   const [activeImage, setActiveImage] = useState(0);
   const [size, setSize] = useState(null);
   const [openAcc, setOpenAcc] = useState("size");
-  const { addItem } = useCart();
+  const { addItem, setIsOpen } = useCart();
+  const navigate = useNavigate();
 
   useEffect(() => {
     setProduct(null);
@@ -50,6 +51,16 @@ export const ProductDetail = () => {
     }
     addItem(product, size);
     toast.success("Added to cart");
+  };
+
+  const onBuyNow = () => {
+    if (product.sizes?.length > 0 && !size) {
+      toast.error("Please pick a size");
+      return;
+    }
+    addItem(product, size);
+    setIsOpen(false);
+    navigate("/checkout");
   };
 
   const waMsg = `Hi Rari Ethnic! I'd like to ask about "${product.name}" (${product.slug}). Is size ${size || "..."} available?`;
@@ -172,6 +183,13 @@ export const ProductDetail = () => {
                 className="w-full bg-[#A0684E] text-[#E8E3D7] py-4 rounded-sm text-sm uppercase tracking-widest hover:bg-[#8C4A3B] transition-colors"
               >
                 Add to Cart · {formatINR(product.price)}
+              </button>
+              <button
+                data-testid="buy-now-button"
+                onClick={onBuyNow}
+                className="w-full bg-[#2A2E30] text-[#E8E3D7] py-4 rounded-sm text-sm uppercase tracking-widest hover:bg-[#1E2122] transition-colors"
+              >
+                Buy Now
               </button>
               <a
                 href={buildWaLink(waMsg)}

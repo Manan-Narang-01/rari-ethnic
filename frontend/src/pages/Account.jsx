@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { useCustomerAuth } from "@/context/CustomerAuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { api, formatINR } from "@/lib/api";
 import { Package, LogOut, ShoppingBag } from "lucide-react";
 
@@ -12,7 +12,7 @@ const STATUS_STYLES = {
 };
 
 export const Account = () => {
-  const { customer, isAuthenticated, logout, loading } = useCustomerAuth();
+  const { user, isAuthenticated, logout, loading } = useAuth();
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
 
@@ -27,6 +27,7 @@ export const Account = () => {
 
   if (loading) return <div className="container-x py-24 text-center text-[#6E7B85]">Loading…</div>;
   if (!isAuthenticated) return <Navigate to="/login?next=/account" replace />;
+  if (user.role !== "customer") return <Navigate to="/admin" replace />;
 
   return (
     <div className="bg-[#E8E3D7] min-h-[70vh]">
@@ -34,16 +35,16 @@ export const Account = () => {
         {/* Profile header */}
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-4">
-            {customer?.picture ? (
-              <img src={customer.picture} alt="" className="w-14 h-14 rounded-full object-cover" referrerPolicy="no-referrer" />
+            {user?.picture ? (
+              <img src={user.picture} alt="" className="w-14 h-14 rounded-full object-cover" referrerPolicy="no-referrer" />
             ) : (
               <div className="w-14 h-14 rounded-full bg-[#A0684E] text-[#E8E3D7] flex items-center justify-center font-display text-xl">
-                {(customer?.name || customer?.email || "?").charAt(0).toUpperCase()}
+                {(user?.name || user?.email || "?").charAt(0).toUpperCase()}
               </div>
             )}
             <div>
-              <h1 className="font-display text-3xl">{customer?.name || "Welcome"}</h1>
-              <p className="text-sm text-[#6E7B85]">{customer?.email}</p>
+              <h1 className="font-display text-3xl">{user?.name || "Welcome"}</h1>
+              <p className="text-sm text-[#6E7B85]">{user?.email}</p>
             </div>
           </div>
           <button

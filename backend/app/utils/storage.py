@@ -1,74 +1,41 @@
-"""Thin client for Emergent's hosted object storage. Swap this module for a
-boto3/S3 client when moving off the Emergent platform (see docs/BACKEND_ARCHITECTURE.md,
-section 10) -- callers only depend on init_storage/put_object/get_object/guess_content_type."""
+"""Local-filesystem object storage for local development. Swap this module for
+an S3-compatible client (see docs/DEPLOYMENT.md section 4 for a drop-in
+boto3-based replacement) before deploying anywhere beyond your own machine --
+callers only depend on init_storage/put_object/get_object/guess_content_type."""
 import logging
-
-import requests
-
-from app.config import settings
-
-STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage"
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_storage_key = None
+STORAGE_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
 
 
 def init_storage() -> str:
-    global _storage_key
-    if _storage_key:
-        return _storage_key
-    resp = requests.post(
-        f"{STORAGE_URL}/init",
-        json={"emergent_key": settings.emergent_llm_key},
-        timeout=30,
-    )
-    resp.raise_for_status()
-    _storage_key = resp.json()["storage_key"]
-    logger.info("Object storage initialized")
-    return _storage_key
+    STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+    return str(STORAGE_DIR)
+
+
+def _safe_path(path: str) -> Path:
+    """Resolves `path` under STORAGE_DIR and rejects anything that would
+    escape it (e.g. `../../etc/passwd` arriving via the public /files/{path} route)."""
+    full = (STORAGE_DIR / path).resolve()
+    if STORAGE_DIR.resolve() not in full.parents and full != STORAGE_DIR.resolve():
+        raise ValueError("Invalid path")
+    return full
 
 
 def put_object(path: str, data: bytes, content_type: str) -> dict:
-    key = init_storage()
-    resp = requests.put(
-        f"{STORAGE_URL}/objects/{path}",
-        headers={"X-Storage-Key": key, "Content-Type": content_type},
-        data=data,
-        timeout=120,
-    )
-    if resp.status_code == 403:
-        global _storage_key
-        _storage_key = None
-        key = init_storage()
-        resp = requests.put(
-            f"{STORAGE_URL}/objects/{path}",
-            headers={"X-Storage-Key": key, "Content-Type": content_type},
-            data=data,
-            timeout=120,
-        )
-    resp.raise_for_status()
-    return resp.json()
+    file_path = _safe_path(path)
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_bytes(data)
+    return {"path": path, "size": len(data)}
 
 
 def get_object(path: str):
-    key = init_storage()
-    resp = requests.get(
-        f"{STORAGE_URL}/objects/{path}",
-        headers={"X-Storage-Key": key},
-        timeout=60,
-    )
-    if resp.status_code == 403:
-        global _storage_key
-        _storage_key = None
-        key = init_storage()
-        resp = requests.get(
-            f"{STORAGE_URL}/objects/{path}",
-            headers={"X-Storage-Key": key},
-            timeout=60,
-        )
-    resp.raise_for_status()
-    return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
+    file_path = _safe_path(path)
+    if not file_path.is_file():
+        raise FileNotFoundError(f"{path} not found")
+    return file_path.read_bytes(), guess_content_type(path)
 
 
 MIME_TYPES = {
