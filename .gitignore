@@ -86,3 +86,11 @@ android-sdk/
 credentials.json
 *.key
 .credentials
+
+# Keep example env templates (they contain no secrets)
+!.env.example
+!**/.env.example
+
+# Stray npm lockfile (this project uses Yarn) and local Claude settings
+package-lock.json
+.claude/

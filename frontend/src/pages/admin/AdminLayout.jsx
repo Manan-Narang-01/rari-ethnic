@@ -1,6 +1,6 @@
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { LogOut, Package, ShoppingBag, Plus, Home } from "lucide-react";
+import { LogOut, Package, ShoppingBag, Plus, Home, Settings, CalendarClock } from "lucide-react";
 import { Toaster } from "sonner";
 
 export const AdminLayout = () => {
@@ -45,6 +45,12 @@ export const AdminLayout = () => {
           </NavLink>
           <NavLink to="/admin/orders" className={linkClass} data-testid="admin-nav-orders">
             <ShoppingBag size={16} /> Orders
+          </NavLink>
+          <NavLink to="/admin/campaigns" className={linkClass} data-testid="admin-nav-campaigns">
+            <CalendarClock size={16} /> Events
+          </NavLink>
+          <NavLink to="/admin/settings" className={linkClass} data-testid="admin-nav-settings">
+            <Settings size={16} /> Site settings
           </NavLink>
           <div className="pt-4 mt-4 border-t border-[#8B9A9F]/20 space-y-1">
             <a

@@ -1,9 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-// Navratri 2026 begins around March 19, 2026 (Chaitra Navratri)
-// but user is planning ahead — we'll target Sharad Navratri (Oct 2026 approx Oct 12)
-// Using an env-driven target keeps this reusable for Diwali too.
-const NAVRATRI_TARGET = new Date("2026-10-12T00:00:00+05:30");
+// Fallback target if no campaign date is configured (Sharad Navratri 2026).
+const DEFAULT_TARGET = "2026-10-12T00:00:00+05:30";
 
 const diff = (target) => {
   const now = new Date();
@@ -17,16 +15,21 @@ const diff = (target) => {
 };
 
 export const CountdownTimer = ({
-  target = NAVRATRI_TARGET,
+  target,
   label = "Navratri arrives in",
   variant = "light",
 }) => {
-  const [t, setT] = useState(diff(target));
+  const targetDate = useMemo(() => {
+    const raw = target || DEFAULT_TARGET;
+    return raw instanceof Date ? raw : new Date(raw);
+  }, [target]);
+  const [t, setT] = useState(() => diff(targetDate));
 
   useEffect(() => {
-    const id = setInterval(() => setT(diff(target)), 1000);
+    setT(diff(targetDate));
+    const id = setInterval(() => setT(diff(targetDate)), 1000);
     return () => clearInterval(id);
-  }, [target]);
+  }, [targetDate]);
 
   const isDark = variant === "dark";
   const cellBase = isDark

@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, Link, Navigate } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
+import { useCustomerAuth } from "@/context/CustomerAuthContext";
 import { api, formatINR } from "@/lib/api";
 import { Check, ChevronLeft, Truck, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -9,6 +10,7 @@ const STEPS = ["Contact", "Address", "Payment"];
 
 export const Checkout = () => {
   const { items, subtotal, shipping, total, clear } = useCart();
+  const { customer, isAuthenticated, loading: authLoading } = useCustomerAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -24,6 +26,17 @@ export const Checkout = () => {
     notes: "",
     payment_method: "COD",
   });
+
+  // Prefill name/email from the signed-in Google account.
+  useEffect(() => {
+    if (customer) {
+      setForm((f) => ({
+        ...f,
+        customer_name: f.customer_name || customer.name || "",
+        email: f.email || customer.email || "",
+      }));
+    }
+  }, [customer]);
 
   const setField = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
@@ -80,6 +93,14 @@ export const Checkout = () => {
       setSubmitting(false);
     }
   };
+
+  // Auth gate — must be signed in to check out (browsing stays open).
+  if (authLoading) {
+    return <div className="container-x py-24 text-center text-[#6E7B85]">Loading…</div>;
+  }
+  if (!isAuthenticated) {
+    return <Navigate to="/login?next=/checkout" replace />;
+  }
 
   if (items.length === 0) {
     return (

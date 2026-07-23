@@ -1,42 +1,29 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, buildWaLink, INSTAGRAM_URL } from "@/lib/api";
+import { useSite } from "@/context/SiteContext";
 import { ProductCard } from "@/components/ProductCard";
 import { CountdownTimer } from "@/components/CountdownTimer";
 import { ArrowRight, Sparkles, Truck, ShieldCheck, HandHeart, Instagram } from "lucide-react";
 
-const CATEGORIES = [
-  {
-    key: "kurtis",
-    name: "Kurtis",
-    tag: "Everyday to festive",
-    image: "https://images.unsplash.com/photo-1708534246055-d7b149acb731?w=1200",
-    color: "#A0684E",
-  },
-  {
-    key: "suits",
-    name: "Suits",
-    tag: "Palazzo, Sharara & more",
-    image: "https://images.unsplash.com/photo-1764740146693-4955d02c98f9?w=1200",
-    color: "#7B6E5A",
-  },
-  {
-    key: "lehengas",
-    name: "Lehengas",
-    tag: "For the big days",
-    image: "https://images.unsplash.com/photo-1503160865267-af4660ce7bf2?w=1200",
-    color: "#A05B6A",
-  },
+// Maps admin-configured icon names to lucide components.
+const ICONS = { HandHeart, ShieldCheck, Truck, Sparkles };
+
+const FALLBACK_CATEGORIES = [
+  { key: "kurtis", name: "Kurtis", tag: "Everyday to festive", image: "https://images.unsplash.com/photo-1708534246055-d7b149acb731?w=1200", color: "#A0684E" },
+  { key: "suits", name: "Suits", tag: "Palazzo, Sharara & more", image: "https://images.unsplash.com/photo-1764740146693-4955d02c98f9?w=1200", color: "#7B6E5A" },
+  { key: "lehengas", name: "Lehengas", tag: "For the big days", image: "https://images.unsplash.com/photo-1503160865267-af4660ce7bf2?w=1200", color: "#A05B6A" },
 ];
 
-const WHYS = [
-  { icon: HandHeart, title: "Fabric-first", copy: "Sourced from Surat mills we've known for years." },
-  { icon: ShieldCheck, title: "Fit Promise", copy: "Honest sizing. Fit notes on every piece." },
-  { icon: Truck, title: "Pan-India Shipping", copy: "COD available. 4-7 day delivery." },
-  { icon: Sparkles, title: "1,200+ Happy Homes", copy: "From Surat to Bengaluru to Guwahati." },
+const FALLBACK_WHYS = [
+  { icon: "HandHeart", title: "Fabric-first", copy: "Sourced from Surat mills we've known for years." },
+  { icon: "ShieldCheck", title: "Fit Promise", copy: "Honest sizing. Fit notes on every piece." },
+  { icon: "Truck", title: "Pan-India Shipping", copy: "COD available. 4-7 day delivery." },
+  { icon: "Sparkles", title: "1,200+ Happy Homes", copy: "From Surat to Bengaluru to Guwahati." },
 ];
 
 export const Home = () => {
+  const { settings, campaign } = useSite();
   const [bestsellers, setBestsellers] = useState([]);
   const [newArrivals, setNewArrivals] = useState([]);
 
@@ -45,14 +32,32 @@ export const Home = () => {
     api.get("/products", { params: { is_new: true } }).then((r) => setNewArrivals(r.data));
   }, []);
 
+  const hero = settings?.home_hero;
+  const CATEGORIES = settings?.home_categories?.length ? settings.home_categories : FALLBACK_CATEGORIES;
+  const WHYS = settings?.home_why?.length ? settings.home_why : FALLBACK_WHYS;
+  const instaTiles = settings?.instagram_tiles?.length
+    ? settings.instagram_tiles
+    : [
+        "https://images.unsplash.com/photo-1503160865267-af4660ce7bf2?w=600",
+        "https://images.unsplash.com/photo-1708534246055-d7b149acb731?w=600",
+        "https://images.pexels.com/photos/13178920/pexels-photo-13178920.jpeg?w=600",
+        "https://images.unsplash.com/photo-1764740146693-4955d02c98f9?w=600",
+      ];
+  const instagramUrl = settings?.instagram_url || INSTAGRAM_URL;
+  const heroEyebrow = hero?.eyebrow || "Navratri Collection · 2026";
+  const heroTitleLines = hero?.title_lines?.length ? hero.title_lines : ["Handcrafted", "for the days", "that matter."];
+  const heroSubtitle = hero?.subtitle ||
+    "Lehengas, kurtis and suits stitched with intention — for Garba nights, family functions and the quiet mornings before them. From our Surat studio to your doorstep.";
+  const heroImage = hero?.image || "https://images.unsplash.com/photo-1654764746225-e63f5e90facd?w=2000";
+
   return (
     <div className="bg-[#E8E3D7]">
       {/* HERO */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src="https://images.unsplash.com/photo-1654764746225-e63f5e90facd?w=2000"
-            alt="Navratri collection"
+            src={heroImage}
+            alt="Collection"
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-[#2A2E30]/70 via-[#2A2E30]/40 to-[#2A2E30]/85" />
@@ -61,18 +66,21 @@ export const Home = () => {
 
         <div className="relative container-x py-24 md:py-32 lg:py-40 text-[#E8E3D7] fade-up">
           <div className="max-w-2xl">
-            <span className="label-caps text-[#B58D3E]">Navratri Collection · 2026</span>
+            <span className="label-caps text-[#B58D3E]">{heroEyebrow}</span>
             <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl leading-[1.02] mt-5 font-normal">
-              Handcrafted
-              <br />
-              for the days
-              <br />
-              <em className="text-[#B58D3E] not-italic font-normal">that matter.</em>
+              {heroTitleLines.map((line, i) => (
+                <span key={i}>
+                  {i === heroTitleLines.length - 1 ? (
+                    <em className="text-[#B58D3E] not-italic font-normal">{line}</em>
+                  ) : (
+                    line
+                  )}
+                  {i < heroTitleLines.length - 1 && <br />}
+                </span>
+              ))}
             </h1>
             <p className="mt-7 text-base sm:text-lg text-[#E8E3D7]/85 max-w-lg leading-relaxed font-body font-light">
-              Lehengas, kurtis and suits stitched with intention — for Garba nights,
-              family functions and the quiet mornings before them. From our Surat
-              studio to your doorstep.
+              {heroSubtitle}
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-3">
               <Link
@@ -92,9 +100,15 @@ export const Home = () => {
             </div>
           </div>
 
-          <div className="mt-14 max-w-md">
-            <CountdownTimer variant="dark" label="Navratri arrives in" />
-          </div>
+          {campaign?.countdown_target && (
+            <div className="mt-14 max-w-md">
+              <CountdownTimer
+                variant="dark"
+                target={campaign.countdown_target}
+                label={campaign.countdown_label || "Navratri arrives in"}
+              />
+            </div>
+          )}
         </div>
       </section>
 
@@ -154,15 +168,18 @@ export const Home = () => {
             <h2 className="font-display text-3xl sm:text-4xl mt-2">Fabric people. First.</h2>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {WHYS.map((w, i) => (
-              <div key={i} className="text-center fade-up" style={{ animationDelay: `${i * 80}ms` }}>
-                <div className="inline-flex w-14 h-14 rounded-full bg-[#E8E3D7] items-center justify-center text-[#A0684E] border border-[#A0684E]/15">
-                  <w.icon size={22} strokeWidth={1.6} />
+            {WHYS.map((w, i) => {
+              const Icon = ICONS[w.icon] || Sparkles;
+              return (
+                <div key={i} className="text-center fade-up" style={{ animationDelay: `${i * 80}ms` }}>
+                  <div className="inline-flex w-14 h-14 rounded-full bg-[#E8E3D7] items-center justify-center text-[#A0684E] border border-[#A0684E]/15">
+                    <Icon size={22} strokeWidth={1.6} />
+                  </div>
+                  <h4 className="font-display text-xl mt-3">{w.title}</h4>
+                  <p className="text-xs sm:text-sm text-[#6E7B85] mt-1 leading-relaxed">{w.copy}</p>
                 </div>
-                <h4 className="font-display text-xl mt-3">{w.title}</h4>
-                <p className="text-xs sm:text-sm text-[#6E7B85] mt-1 leading-relaxed">{w.copy}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
@@ -239,15 +256,10 @@ export const Home = () => {
           <p className="text-sm text-[#6E7B85] mt-2">Real customers · styling tips · new drops first</p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
-          {[
-            "https://images.unsplash.com/photo-1503160865267-af4660ce7bf2?w=600",
-            "https://images.unsplash.com/photo-1708534246055-d7b149acb731?w=600",
-            "https://images.pexels.com/photos/13178920/pexels-photo-13178920.jpeg?w=600",
-            "https://images.unsplash.com/photo-1764740146693-4955d02c98f9?w=600",
-          ].map((src, i) => (
+          {instaTiles.map((src, i) => (
             <a
               key={i}
-              href={INSTAGRAM_URL}
+              href={instagramUrl}
               target="_blank"
               rel="noopener noreferrer"
               data-testid={`instagram-tile-${i}`}
@@ -266,7 +278,7 @@ export const Home = () => {
         </div>
         <div className="text-center mt-8">
           <a
-            href={INSTAGRAM_URL}
+            href={instagramUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 text-sm border border-[#2A2E30]/20 px-6 py-3 rounded-sm hover:bg-[#2A2E30] hover:text-[#E8E3D7] transition-colors"

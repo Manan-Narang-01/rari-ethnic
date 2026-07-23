@@ -1,4 +1,4 @@
-"""Admin auth + object storage helpers for Rari Ethnic."""
+"""Admin + customer auth and object storage helpers for Rari Ethnic."""
 import os
 import bcrypt
 import jwt
@@ -10,6 +10,10 @@ from fastapi import HTTPException, Request
 
 JWT_ALGORITHM = "HS256"
 STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage"
+
+# Google Identity Services token verification
+GOOGLE_CERTS_URL = "https://www.googleapis.com/oauth2/v3/certs"
+GOOGLE_ISSUERS = {"accounts.google.com", "https://accounts.google.com"}
 
 logger = logging.getLogger(__name__)
 
@@ -25,14 +29,16 @@ def verify_password(plain: str, hashed: str) -> bool:
         return False
 
 
-def create_access_token(email: str, hours: int = 24) -> str:
+def create_access_token(email: str, role: str = "admin", extra: dict = None, hours: int = 24) -> str:
     payload = {
         "sub": email,
         "email": email,
-        "role": "admin",
+        "role": role,
         "exp": datetime.now(timezone.utc) + timedelta(hours=hours),
         "type": "access",
     }
+    if extra:
+        payload.update(extra)
     return jwt.encode(payload, os.environ["JWT_SECRET"], algorithm=JWT_ALGORITHM)
 
 
@@ -40,20 +46,63 @@ def decode_token(token: str) -> dict:
     return jwt.decode(token, os.environ["JWT_SECRET"], algorithms=[JWT_ALGORITHM])
 
 
-async def require_admin(request: Request) -> dict:
+def _decode_bearer(request: Request) -> dict:
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing bearer token")
     token = auth[7:]
     try:
-        payload = decode_token(token)
+        return decode_token(token)
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+async def require_admin(request: Request) -> dict:
+    payload = _decode_bearer(request)
     if payload.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
     return payload
+
+
+async def require_customer(request: Request) -> dict:
+    payload = _decode_bearer(request)
+    if payload.get("role") != "customer":
+        raise HTTPException(status_code=403, detail="Customer login required")
+    return payload
+
+
+# ---------- Google Sign-In ----------
+_google_jwks_client = None
+
+
+def verify_google_token(credential: str) -> dict:
+    """Verify a Google Identity Services ID token and return its claims."""
+    client_id = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+    if not client_id:
+        raise HTTPException(status_code=503, detail="Google login is not configured")
+
+    global _google_jwks_client
+    if _google_jwks_client is None:
+        _google_jwks_client = jwt.PyJWKClient(GOOGLE_CERTS_URL)
+
+    try:
+        signing_key = _google_jwks_client.get_signing_key_from_jwt(credential)
+        claims = jwt.decode(
+            credential,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=client_id,
+        )
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
+
+    if claims.get("iss") not in GOOGLE_ISSUERS:
+        raise HTTPException(status_code=401, detail="Invalid token issuer")
+    if not claims.get("email_verified", False):
+        raise HTTPException(status_code=401, detail="Google email not verified")
+    return claims
 
 
 # ---------- Object Storage ----------

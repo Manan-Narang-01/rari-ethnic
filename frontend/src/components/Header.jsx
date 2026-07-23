@@ -1,7 +1,9 @@
 import { Link, NavLink } from "react-router-dom";
 import { useState } from "react";
-import { ShoppingBag, Menu, X, Instagram } from "lucide-react";
+import { ShoppingBag, Menu, X, Instagram, User } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { useSite } from "@/context/SiteContext";
+import { useCustomerAuth } from "@/context/CustomerAuthContext";
 import { INSTAGRAM_URL } from "@/lib/api";
 
 const nav = [
@@ -14,7 +16,17 @@ const nav = [
 
 export const Header = () => {
   const { count, setIsOpen } = useCart();
+  const { settings } = useSite();
+  const { isAuthenticated, customer } = useCustomerAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const announcements =
+    settings?.announcements?.length > 0
+      ? settings.announcements
+      : ["Handcrafted in Surat", "Free shipping over ₹2,000", "Pan-India delivery in 4-7 days"];
+  const instagramUrl = settings?.instagram_url || INSTAGRAM_URL;
+  // Duplicate the list so the marquee scrolls seamlessly.
+  const marquee = [...announcements, ...announcements];
 
   return (
     <header className="sticky top-0 z-40 bg-[#E8E3D7]/92 backdrop-blur-md border-b border-[#8B9A9F]/20">
@@ -22,21 +34,12 @@ export const Header = () => {
       <div className="bg-[#2A2E30] text-[#E8E3D7]">
         <div className="container-x py-1.5 overflow-hidden">
           <div className="flex whitespace-nowrap animate-marquee gap-20 text-[10px] tracking-[0.28em] uppercase font-body">
-            <span>Handcrafted in Surat</span>
-            <span>·</span>
-            <span>Free shipping over ₹2,000</span>
-            <span>·</span>
-            <span>Pan-India delivery in 4-7 days</span>
-            <span>·</span>
-            <span>Cash on Delivery available</span>
-            <span>·</span>
-            <span>Handcrafted in Surat</span>
-            <span>·</span>
-            <span>Free shipping over ₹2,000</span>
-            <span>·</span>
-            <span>Pan-India delivery in 4-7 days</span>
-            <span>·</span>
-            <span>Cash on Delivery available</span>
+            {marquee.map((msg, i) => (
+              <span key={i} className="flex items-center gap-20">
+                {msg}
+                <span aria-hidden>·</span>
+              </span>
+            ))}
           </div>
         </div>
       </div>
@@ -91,7 +94,7 @@ export const Header = () => {
 
         <div className="flex items-center gap-1 sm:gap-3">
           <a
-            href={INSTAGRAM_URL}
+            href={instagramUrl}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Instagram"
@@ -100,6 +103,18 @@ export const Header = () => {
           >
             <Instagram size={18} strokeWidth={1.6} />
           </a>
+          <Link
+            to={isAuthenticated ? "/account" : "/login"}
+            aria-label={isAuthenticated ? "My account" : "Sign in"}
+            data-testid="header-account"
+            className="relative p-2 text-[#2A2E30] hover:text-[#A0684E] transition-colors"
+          >
+            {isAuthenticated && customer?.picture ? (
+              <img src={customer.picture} alt="" referrerPolicy="no-referrer" className="w-6 h-6 rounded-full object-cover" />
+            ) : (
+              <User size={20} strokeWidth={1.6} />
+            )}
+          </Link>
           <button
             data-testid="header-cart-button"
             onClick={() => setIsOpen(true)}
@@ -151,6 +166,13 @@ export const Header = () => {
               className="font-display text-2xl py-2 px-2 text-[#2A2E30]"
             >
               Size Guide
+            </Link>
+            <Link
+              to={isAuthenticated ? "/account" : "/login"}
+              onClick={() => setMobileOpen(false)}
+              className="font-display text-2xl py-2 px-2 text-[#A0684E]"
+            >
+              {isAuthenticated ? "My Account" : "Sign In"}
             </Link>
           </nav>
         </div>

@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "@/lib/api";
+import { useSite } from "@/context/SiteContext";
 import { ProductCard } from "@/components/ProductCard";
 import { CountdownTimer } from "@/components/CountdownTimer";
 import { ArrowRight, Flame, Sparkles } from "lucide-react";
 
-const NAVRATRI_DAYS = [
+const FALLBACK_DAYS = [
   { day: 1, name: "Orange", hex: "#E27D2C", meaning: "Energy & vitality" },
   { day: 2, name: "White", hex: "#F3EDE4", meaning: "Peace & purity" },
   { day: 3, name: "Red", hex: "#7E1F35", meaning: "Passion & power" },
@@ -17,11 +18,11 @@ const NAVRATRI_DAYS = [
   { day: 9, name: "Peacock Green", hex: "#0F6E5E", meaning: "Uniqueness" },
 ];
 
-// Mata Rani / Durga images
-const MATA_HERO = "https://images.pexels.com/photos/28936373/pexels-photo-28936373.jpeg?auto=compress&cs=tinysrgb&w=1600";
-const MATA_SECONDARY = "https://images.pexels.com/photos/29593203/pexels-photo-29593203.jpeg?auto=compress&cs=tinysrgb&w=1200";
+const FALLBACK_HERO = "https://images.pexels.com/photos/28936373/pexels-photo-28936373.jpeg?auto=compress&cs=tinysrgb&w=1600";
+const FALLBACK_SECONDARY = "https://images.pexels.com/photos/29593203/pexels-photo-29593203.jpeg?auto=compress&cs=tinysrgb&w=1200";
 
 export const NavratriLanding = () => {
+  const { campaign } = useSite();
   const [products, setProducts] = useState([]);
 
   useEffect(() => {
@@ -30,6 +31,19 @@ export const NavratriLanding = () => {
     document.body.classList.add("festive-mode");
     return () => document.body.classList.remove("festive-mode");
   }, []);
+
+  const NAVRATRI_DAYS = campaign?.day_colors?.length ? campaign.day_colors : FALLBACK_DAYS;
+  const MATA_HERO = campaign?.hero_image || FALLBACK_HERO;
+  const MATA_SECONDARY = campaign?.hero_secondary_image || FALLBACK_SECONDARY;
+  const heroEyebrow = campaign?.hero_eyebrow || "Navratri Edit · 2026";
+  const heroTitle = campaign?.hero_title || "Jai Mata Di. Nine nights. One goddess in you.";
+  const heroTitleLines = heroTitle.split(/(?<=\.)\s+/).filter(Boolean);
+  const heroSubtitle = campaign?.hero_subtitle ||
+    "Lehengas, kurtis and suits handpicked for Garba nights, aarti mornings and every colour Maa asks you to wear. Handcrafted in Surat.";
+  const ctaLabel = campaign?.cta_label || "Shop the drop";
+  const orderByNote = campaign?.order_by_note || "";
+  const shloka = campaign?.shloka || "या देवी सर्वभूतेषु शक्तिरूपेण संस्थिता";
+  const shlokaTranslation = campaign?.shloka_translation || "To the goddess who dwells in every being as strength";
 
   const garbaReady = products.filter((p) => p.edit_tag === "Garba Ready");
   const familyFunction = products.filter((p) => p.edit_tag === "Family Function");
@@ -67,26 +81,36 @@ export const NavratriLanding = () => {
             <div className="inline-flex items-center gap-2 border border-[#F4C842]/50 bg-[#3E0714]/60 backdrop-blur-sm px-4 py-1.5 rounded-full">
               <Flame size={14} className="text-[#F4C842]" />
               <span className="label-caps text-[#F4C842] tracking-[0.28em]">
-                Navratri Edit · 2026
+                {heroEyebrow}
               </span>
             </div>
 
             <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl leading-[1.02] mt-6 font-normal">
-              <span className="text-[#F4C842]">Jai</span> Mata Di.
-              <br />
-              <span className="text-[#F5E9C9]/95">Nine nights.</span>
-              <br />
-              <em className="not-italic text-[#F4C842]">One goddess in you.</em>
+              {heroTitleLines.map((line, i) => (
+                <span key={i}>
+                  {i === heroTitleLines.length - 1 ? (
+                    <em className="not-italic text-[#F4C842]">{line}</em>
+                  ) : (
+                    <span className={i === 0 ? "text-[#F4C842]" : "text-[#F5E9C9]/95"}>{line}</span>
+                  )}
+                  {i < heroTitleLines.length - 1 && <br />}
+                </span>
+              ))}
             </h1>
 
             <p className="mt-7 text-base sm:text-lg text-[#F5E9C9]/85 max-w-lg leading-relaxed font-body font-light md:mx-0 mx-auto">
-              Lehengas, kurtis and suits handpicked for Garba nights, aarti mornings
-              and every colour Maa asks you to wear. Handcrafted in Surat.
+              {heroSubtitle}
             </p>
 
-            <div className="mt-10 flex justify-center md:justify-start">
-              <CountdownTimer variant="dark" label="Navratri arrives in" />
-            </div>
+            {campaign?.countdown_target && (
+              <div className="mt-10 flex justify-center md:justify-start">
+                <CountdownTimer
+                  variant="dark"
+                  target={campaign.countdown_target}
+                  label={campaign.countdown_label || "Navratri arrives in"}
+                />
+              </div>
+            )}
 
             <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
               <a
@@ -94,13 +118,14 @@ export const NavratriLanding = () => {
                 data-testid="navratri-shop-cta"
                 className="inline-flex items-center gap-2 bg-[#F4C842] text-[#3E0714] px-7 py-4 rounded-sm font-medium text-xs uppercase tracking-[0.24em] hover:bg-[#F5E9C9] transition-colors"
               >
-                Shop the drop <ArrowRight size={14} />
+                {ctaLabel} <ArrowRight size={14} />
               </a>
-              <div className="inline-flex items-center gap-2 text-xs bg-[#7E1F35] border border-[#F4C842]/40 px-4 py-3 rounded-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#F4C842] pulse-dot" />
-                Order by <strong className="mx-1 text-[#F4C842]">Sep 20</strong> for
-                pre-Navratri delivery
-              </div>
+              {orderByNote && (
+                <div className="inline-flex items-center gap-2 text-xs bg-[#7E1F35] border border-[#F4C842]/40 px-4 py-3 rounded-sm">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#F4C842] pulse-dot" />
+                  {orderByNote}
+                </div>
+              )}
             </div>
           </div>
 
@@ -142,10 +167,10 @@ export const NavratriLanding = () => {
       <section className="relative py-8 border-b border-[#F4C842]/15">
         <div className="container-x text-center">
           <div className="font-display italic text-[#F4C842]/90 text-lg sm:text-xl">
-            "या देवी सर्वभूतेषु शक्तिरूपेण संस्थिता"
+            "{shloka}"
           </div>
           <div className="text-xs text-[#F5E9C9]/60 mt-2 tracking-widest uppercase">
-            To the goddess who dwells in every being as strength
+            {shlokaTranslation}
           </div>
         </div>
       </section>

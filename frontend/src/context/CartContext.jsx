@@ -1,10 +1,12 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useSite } from "@/context/SiteContext";
 
 const CartContext = createContext(null);
 
 const STORAGE_KEY = "rari_cart_v1";
 
 export const CartProvider = ({ children }) => {
+  const { settings } = useSite();
   const [items, setItems] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -64,7 +66,9 @@ export const CartProvider = ({ children }) => {
     () => items.reduce((s, i) => s + i.quantity, 0),
     [items]
   );
-  const shipping = subtotal >= 2000 || subtotal === 0 ? 0 : 99;
+  const threshold = settings?.free_shipping_threshold ?? 2000;
+  const fee = settings?.shipping_fee ?? 99;
+  const shipping = subtotal >= threshold || subtotal === 0 ? 0 : fee;
   const total = subtotal + shipping;
 
   return (

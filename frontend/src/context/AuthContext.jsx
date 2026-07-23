@@ -1,25 +1,14 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { api, ADMIN_TOKEN_KEY } from "@/lib/api";
 
 const AuthContext = createContext(null);
-const TOKEN_KEY = "rari_admin_token";
-
-// Attach token to axios by default
-const setAxiosAuth = (token) => {
-  if (token) {
-    api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-  } else {
-    delete api.defaults.headers.common["Authorization"];
-  }
-};
 
 export const AuthProvider = ({ children }) => {
-  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY));
+  const [token, setToken] = useState(() => localStorage.getItem(ADMIN_TOKEN_KEY));
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setAxiosAuth(token);
     if (!token) {
       setLoading(false);
       return;
@@ -28,25 +17,22 @@ export const AuthProvider = ({ children }) => {
       .get("/auth/me")
       .then((r) => setUser(r.data))
       .catch(() => {
-        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(ADMIN_TOKEN_KEY);
         setToken(null);
-        setAxiosAuth(null);
       })
       .finally(() => setLoading(false));
   }, [token]);
 
   const login = async (email, password) => {
     const r = await api.post("/auth/login", { email, password });
-    localStorage.setItem(TOKEN_KEY, r.data.access_token);
-    setAxiosAuth(r.data.access_token);
+    localStorage.setItem(ADMIN_TOKEN_KEY, r.data.access_token);
     setToken(r.data.access_token);
     setUser({ email: r.data.email, role: r.data.role });
     return r.data;
   };
 
   const logout = () => {
-    localStorage.removeItem(TOKEN_KEY);
-    setAxiosAuth(null);
+    localStorage.removeItem(ADMIN_TOKEN_KEY);
     setToken(null);
     setUser(null);
   };
