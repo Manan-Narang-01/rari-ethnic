@@ -4,21 +4,28 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { Lock } from "lucide-react";
 import { toast } from "sonner";
 
+const STAFF_ROLES = ["admin", "super_admin"];
+
 export const AdminLogin = () => {
-  const { user, login, loading } = useAuth();
+  const { user, login, logout, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const nav = useNavigate();
 
   if (loading) return <div className="p-10 text-center text-[#6E7B85]">Loading…</div>;
-  if (user) return <Navigate to="/admin" replace />;
+  if (user && STAFF_ROLES.includes(user.role)) return <Navigate to="/admin" replace />;
 
   const submit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await login(email, password);
+      const { user: loggedInUser } = await login(email, password);
+      if (!STAFF_ROLES.includes(loggedInUser.role)) {
+        logout();
+        toast.error("This sign-in is for staff accounts only");
+        return;
+      }
       toast.success("Welcome back");
       nav("/admin", { replace: true });
     } catch (err) {

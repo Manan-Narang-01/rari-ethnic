@@ -1,0 +1,72 @@
+import logging
+
+from fastapi import APIRouter, Depends
+
+from app.api.deps import get_current_user
+from app.schemas.auth import (
+    ChangePasswordRequest,
+    ForgotPasswordRequest,
+    LoginRequest,
+    LogoutRequest,
+    RefreshRequest,
+    RegisterRequest,
+    ResetPasswordRequest,
+    TokenResponse,
+    UserOut,
+)
+from app.services.auth_service import AuthService
+
+router = APIRouter(prefix="/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
+
+
+@router.post("/register", response_model=TokenResponse)
+async def register(payload: RegisterRequest):
+    user = await AuthService.register_customer(payload.name, payload.email, payload.password, payload.phone)
+    return await AuthService.issue_tokens(user)
+
+
+@router.post("/login", response_model=TokenResponse)
+async def login(payload: LoginRequest):
+    user = await AuthService.authenticate(payload.email, payload.password)
+    return await AuthService.issue_tokens(user)
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh(payload: RefreshRequest):
+    return await AuthService.refresh_tokens(payload.refresh_token)
+
+
+@router.post("/logout")
+async def logout(payload: LogoutRequest):
+    await AuthService.logout(payload.refresh_token)
+    return {"logged_out": True}
+
+
+@router.get("/me", response_model=UserOut)
+async def me(user: dict = Depends(get_current_user)):
+    return user
+
+
+@router.post("/change-password")
+async def change_password(payload: ChangePasswordRequest, user: dict = Depends(get_current_user)):
+    await AuthService.change_password(user, payload.current_password, payload.new_password)
+    return {"changed": True}
+
+
+@router.post("/forgot-password")
+async def forgot_password(payload: ForgotPasswordRequest):
+    raw_token = await AuthService.request_password_reset(payload.email)
+    # No email/SMS provider is wired up yet (see roadmap phase on notifications) --
+    # log the token so it can be tested locally. Never do this in production.
+    if raw_token:
+        logger.info("Password reset token for %s: %s", payload.email, raw_token)
+    # Always return 200 regardless of whether the email existed, to avoid
+    # leaking account existence via response differences.
+    return {"message": "If that email exists, a reset link has been sent."}
+
+
+@router.post("/reset-password")
+async def reset_password(payload: ResetPasswordRequest):
+    await AuthService.reset_password(payload.token, payload.new_password)
+    return {"reset": True}

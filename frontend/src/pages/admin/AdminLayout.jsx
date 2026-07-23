@@ -9,7 +9,7 @@ export const AdminLayout = () => {
 
   if (loading)
     return <div className="p-10 text-center text-[#6E7B85]">Loading…</div>;
-  if (!user) {
+  if (!user || (user.role !== "admin" && user.role !== "super_admin")) {
     nav("/admin/login", { replace: true });
     return null;
   }
