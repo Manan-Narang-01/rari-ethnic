@@ -206,8 +206,10 @@ export const Checkout = () => {
                 </div>
                 <div className="bg-[#DDD5C4] p-4 rounded-sm text-sm text-[#2A2E30]/80 leading-relaxed">
                   By placing this order you agree to Rari Ethnic's shipping and
-                  exchange policy. Delivery in 4–7 days. You will receive a
-                  WhatsApp update once dispatched.
+                  exchange policy. Delivery in 4–7 days. We do not offer returns
+                  or refunds — exchanges only, accepted within 15 days of delivery
+                  from your Account page. You will receive a WhatsApp update once
+                  dispatched.
                 </div>
               </div>
             )}

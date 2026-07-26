@@ -132,6 +132,7 @@ export const AdminProducts = () => {
                   {p.is_bestseller && <span className="text-[9px] bg-[#A0684E] text-[#E8E3D7] px-1.5 py-0.5 rounded-sm">BS</span>}
                   {p.is_new && <span className="text-[9px] bg-[#7B6E5A] text-[#E8E3D7] px-1.5 py-0.5 rounded-sm">NEW</span>}
                   {p.is_navratri && <span className="text-[9px] bg-[#B58D3E] text-[#2A2E30] px-1.5 py-0.5 rounded-sm">NAV</span>}
+                  {p.shipping_enabled && <span className="text-[9px] bg-[#1E3A5F] text-[#E8E3D7] px-1.5 py-0.5 rounded-sm">SHIP ₹{p.shipping_charge}</span>}
                   {!p.is_active && <span className="text-[9px] bg-[#6E7B85] text-[#E8E3D7] px-1.5 py-0.5 rounded-sm">HIDDEN</span>}
                 </div>
               </div>

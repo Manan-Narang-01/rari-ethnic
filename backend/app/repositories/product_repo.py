@@ -62,6 +62,8 @@ class ProductRepository:
     @classmethod
     async def backfill_defaults(cls) -> None:
         await cls._collection().update_many({"is_active": {"$exists": False}}, {"$set": {"is_active": True}})
+        await cls._collection().update_many({"shipping_enabled": {"$exists": False}}, {"$set": {"shipping_enabled": False}})
+        await cls._collection().update_many({"shipping_charge": {"$exists": False}}, {"$set": {"shipping_charge": 0}})
 
     @classmethod
     async def ensure_indexes(cls) -> None:

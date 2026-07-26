@@ -43,6 +43,8 @@ export const CartProvider = ({ children }) => {
           image: product.images?.[0],
           size: size || null,
           quantity,
+          shipping_enabled: product.shipping_enabled || false,
+          shipping_charge: product.shipping_charge || 0,
         },
       ];
     });
@@ -68,7 +70,16 @@ export const CartProvider = ({ children }) => {
   );
   const threshold = settings?.free_shipping_threshold ?? 2000;
   const fee = settings?.shipping_fee ?? 99;
-  const shipping = subtotal >= threshold || subtotal === 0 ? 0 : fee;
+  // A shipping-enabled product's own charge replaces the free-shipping-threshold
+  // rule for the whole order (see backend OrderService, which is authoritative —
+  // this mirrors it purely so the customer sees the real total before checkout).
+  const shippingSurchargeItems = items.filter((i) => i.shipping_enabled);
+  const hasShippingSurcharge = shippingSurchargeItems.length > 0;
+  const shipping = hasShippingSurcharge
+    ? shippingSurchargeItems.reduce((s, i) => s + i.shipping_charge * i.quantity, 0)
+    : subtotal >= threshold || subtotal === 0
+    ? 0
+    : fee;
   const total = subtotal + shipping;
 
   return (
@@ -81,6 +92,7 @@ export const CartProvider = ({ children }) => {
         clear,
         subtotal,
         shipping,
+        hasShippingSurcharge,
         total,
         count,
         isOpen,

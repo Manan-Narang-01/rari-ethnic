@@ -4,7 +4,7 @@ import { useCart } from "@/context/CartContext";
 import { formatINR } from "@/lib/api";
 
 export const CartDrawer = () => {
-  const { items, isOpen, setIsOpen, updateQty, removeItem, subtotal, shipping } = useCart();
+  const { items, isOpen, setIsOpen, updateQty, removeItem, subtotal, shipping, hasShippingSurcharge } = useCart();
   const navigate = useNavigate();
 
   if (!isOpen) return null;
@@ -124,10 +124,16 @@ export const CartDrawer = () => {
                   {shipping === 0 ? "Free" : formatINR(shipping)}
                 </span>
               </div>
-              {subtotal < 2000 && (
-                <p className="text-xs text-[#A0684E]">
-                  Add {formatINR(2000 - subtotal)} more for free shipping.
+              {hasShippingSurcharge ? (
+                <p className="text-xs text-[#6E7B85]">
+                  Includes a shipping charge for one or more items in your cart.
                 </p>
+              ) : (
+                subtotal < 2000 && (
+                  <p className="text-xs text-[#A0684E]">
+                    Add {formatINR(2000 - subtotal)} more for free shipping.
+                  </p>
+                )
               )}
               <button
                 onClick={goCheckout}

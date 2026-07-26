@@ -95,6 +95,11 @@ class TestOrders:
     order_number = None
 
     def test_create_order(self, s):
+        # Order pricing is server-authoritative (see OrderService): it looks
+        # up the real product by id and recomputes subtotal/shipping/total
+        # from the database, ignoring whatever the client sends for them.
+        product = s.get(f"{API}/products/meher-maroon-kurti").json()
+        expected_subtotal = product["price"] * 2
         payload = {
             "customer_name": "TEST_Priya Sharma",
             "email": "TEST_priya@example.com",
@@ -106,17 +111,17 @@ class TestOrders:
             "pincode": "395002",
             "notes": "Test order",
             "items": [{
-                "product_id": "p1",
-                "slug": "meher-maroon-kurti",
-                "name": "Meher Maroon Chikankari Kurti",
-                "price": 1599,
+                "product_id": product["id"],
+                "slug": product["slug"],
+                "name": product["name"],
+                "price": 1,  # deliberately wrong -- server must ignore this
                 "quantity": 2,
                 "size": "M",
                 "image": "https://example.com/img.jpg"
             }],
-            "subtotal": 3198,
-            "shipping": 0,
-            "total": 3198,
+            "subtotal": 1,  # deliberately wrong -- server must recompute
+            "shipping": 12345,
+            "total": 1,
             "payment_method": "COD"
         }
         r = s.post(f"{API}/orders", json=payload)
@@ -126,9 +131,9 @@ class TestOrders:
         assert d["order_number"].startswith("RE")
         assert d["status"] == "confirmed"
         assert isinstance(d["items"], list) and len(d["items"]) == 1
-        assert d["subtotal"] == 3198
-        assert d["total"] == 3198
-        assert d["shipping"] == 0
+        assert d["items"][0]["price"] == product["price"], "server must use the DB price, not the client's"
+        assert d["subtotal"] == expected_subtotal
+        assert d["total"] == d["subtotal"] + d["shipping"]
         TestOrders.order_number = d["order_number"]
 
     def test_get_order_by_number(self, s):

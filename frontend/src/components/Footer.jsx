@@ -86,7 +86,7 @@ export const Footer = () => {
               <li><Link to="/size-guide" className="hover:text-[#B58D3E]">Size Guide</Link></li>
               <li><Link to="/about" className="hover:text-[#B58D3E]">Our Story</Link></li>
               <li><Link to="/contact" className="hover:text-[#B58D3E]">Contact / WhatsApp</Link></li>
-              <li><a href={buildWaLink("Hi Rari Ethnic! I have a question about shipping.")} target="_blank" rel="noopener noreferrer" className="hover:text-[#B58D3E]">Shipping & Returns</a></li>
+              <li><a href={buildWaLink("Hi Rari Ethnic! I have a question about shipping.")} target="_blank" rel="noopener noreferrer" className="hover:text-[#B58D3E]">Shipping & Exchanges</a></li>
             </ul>
           </div>
 

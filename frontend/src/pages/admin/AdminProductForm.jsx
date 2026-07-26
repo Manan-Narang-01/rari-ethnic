@@ -4,6 +4,7 @@ import { api, API } from "@/lib/api";
 import { toast } from "sonner";
 import { Upload, X, Loader2, ChevronLeft } from "lucide-react";
 
+const FREE_SIZE = "Free Size";
 const ALL_SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 const OCCASIONS = ["Daily", "Office", "Festive", "Sangeet", "Wedding", "Reception", "Haldi", "Mehendi", "Garba", "Navratri", "Diwali", "Family function", "Nikah", "Party"];
 
@@ -28,6 +29,8 @@ const emptyForm = {
   is_active: true,
   navratri_day: "",
   edit_tag: "",
+  shipping_enabled: false,
+  shipping_charge: "",
 };
 
 export const AdminProductForm = ({ mode = "create" }) => {
@@ -55,6 +58,7 @@ export const AdminProductForm = ({ mode = "create" }) => {
           ...p,
           price: String(p.price ?? ""),
           compare_at_price: p.compare_at_price ? String(p.compare_at_price) : "",
+          shipping_charge: String(p.shipping_charge ?? 0),
           colors: (p.colors || []).join(", "),
           color_hex: (p.color_hex || []).join(", "),
         });
@@ -78,6 +82,21 @@ export const AdminProductForm = ({ mode = "create" }) => {
     setForm({
       ...form,
       [key]: cur.includes(val) ? cur.filter((v) => v !== val) : [...cur, val],
+    });
+  };
+
+  // Sizes are special-cased: "Free Size" and specific sizes (XS-XXL) are
+  // mutually exclusive, so this can't reuse the generic multi-select toggle.
+  const toggleSize = (val) => {
+    const cur = form.sizes || [];
+    if (val === FREE_SIZE) {
+      setForm({ ...form, sizes: cur.includes(FREE_SIZE) ? [] : [FREE_SIZE] });
+      return;
+    }
+    if (cur.includes(FREE_SIZE)) return; // specific-size buttons are disabled in this state
+    setForm({
+      ...form,
+      sizes: cur.includes(val) ? cur.filter((v) => v !== val) : [...cur, val],
     });
   };
 
@@ -155,6 +174,8 @@ export const AdminProductForm = ({ mode = "create" }) => {
       is_active: form.is_active,
       navratri_day: form.navratri_day || null,
       edit_tag: form.edit_tag || null,
+      shipping_enabled: form.shipping_enabled,
+      shipping_charge: form.shipping_enabled ? parseInt(form.shipping_charge) || 0 : 0,
     };
     try {
       if (mode === "edit") {
@@ -267,6 +288,36 @@ export const AdminProductForm = ({ mode = "create" }) => {
           </div>
         </Card>
 
+        {/* Shipping */}
+        <Card title="Shipping charge">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.shipping_enabled}
+              onChange={setField("shipping_enabled")}
+              data-testid="admin-shipping-enabled"
+              className="accent-[#A0684E] w-4 h-4"
+            />
+            <span className="text-sm">Charge shipping on this product</span>
+          </label>
+          <p className="text-xs text-[#6E7B85] mt-1.5">
+            When enabled, this charge is added to the order total instead of the
+            site-wide free-shipping rule — for products too heavy or bulky to
+            ship for the standard fee.
+          </p>
+          {form.shipping_enabled && (
+            <div className="mt-4 max-w-xs">
+              <Field
+                label="Shipping charge ₹"
+                type="number"
+                value={form.shipping_charge}
+                onChange={setField("shipping_charge")}
+                testid="admin-shipping-charge"
+              />
+            </div>
+          )}
+        </Card>
+
         {/* Copy */}
         <Card title="Details">
           <div className="space-y-5">
@@ -282,13 +333,28 @@ export const AdminProductForm = ({ mode = "create" }) => {
         {/* Sizes */}
         <Card title="Sizes">
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => toggleSize(FREE_SIZE)}
+              disabled={form.sizes.length > 0 && !form.sizes.includes(FREE_SIZE)}
+              data-testid="admin-size-free"
+              className={`h-11 px-4 border text-sm rounded-sm disabled:opacity-30 disabled:cursor-not-allowed ${
+                form.sizes.includes(FREE_SIZE)
+                  ? "bg-[#2A2E30] text-[#E8E3D7] border-[#2A2E30]"
+                  : "border-[#8B9A9F]/40 hover:border-[#2A2E30]"
+              }`}
+            >
+              Free Size
+            </button>
+            <div className="w-px bg-[#8B9A9F]/30 mx-1" />
             {ALL_SIZES.map((s) => (
               <button
                 key={s}
                 type="button"
-                onClick={() => toggleArr("sizes", s)}
+                onClick={() => toggleSize(s)}
+                disabled={form.sizes.includes(FREE_SIZE)}
                 data-testid={`admin-size-${s}`}
-                className={`w-11 h-11 border text-sm rounded-sm ${
+                className={`w-11 h-11 border text-sm rounded-sm disabled:opacity-30 disabled:cursor-not-allowed ${
                   form.sizes.includes(s)
                     ? "bg-[#2A2E30] text-[#E8E3D7] border-[#2A2E30]"
                     : "border-[#8B9A9F]/40 hover:border-[#2A2E30]"
@@ -298,6 +364,9 @@ export const AdminProductForm = ({ mode = "create" }) => {
               </button>
             ))}
           </div>
+          {form.sizes.includes(FREE_SIZE) && (
+            <p className="text-xs text-[#6E7B85] mt-2">Specific sizes are disabled while Free Size is selected.</p>
+          )}
         </Card>
 
         {/* Occasions */}

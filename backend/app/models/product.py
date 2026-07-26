@@ -30,6 +30,11 @@ class Product(BaseModel):
     is_active: bool = True
     navratri_day: Optional[str] = None
     edit_tag: Optional[str] = None
+    # When enabled, this product's shipping_charge replaces the site-wide
+    # free-shipping-threshold rule for any order containing it (see
+    # OrderService.create) instead of stacking with it.
+    shipping_enabled: bool = False
+    shipping_charge: int = 0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -55,6 +60,8 @@ class ProductCreate(BaseModel):
     is_active: bool = True
     navratri_day: Optional[str] = None
     edit_tag: Optional[str] = None
+    shipping_enabled: bool = False
+    shipping_charge: int = 0
 
 
 class ProductUpdate(BaseModel):
@@ -79,3 +86,5 @@ class ProductUpdate(BaseModel):
     is_active: Optional[bool] = None
     navratri_day: Optional[str] = None
     edit_tag: Optional[str] = None
+    shipping_enabled: Optional[bool] = None
+    shipping_charge: Optional[int] = None

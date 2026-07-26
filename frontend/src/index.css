@@ -101,13 +101,29 @@ body {
 }
 
 /* Small caps label — refined */
-.label-caps {
-    font-family: "DM Sans", sans-serif;
-    font-size: 0.7rem;
-    letter-spacing: 0.24em;
-    text-transform: uppercase;
-    color: var(--sage-deep);
-    font-weight: 500;
+@layer base {
+    .label-caps {
+        font-family: "DM Sans", sans-serif;
+        font-size: 0.7rem;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        color: var(--sage-deep);
+        font-weight: 500;
+    }
+
+    /* Chrome/Edge/Safari force their own background + text colour on
+       autofilled inputs, overriding bg-transparent. Repaint it in the
+       brand's own cream so autofilled fields don't flash blue/yellow. */
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus,
+    input:-webkit-autofill:active {
+        -webkit-text-fill-color: var(--ink);
+        caret-color: var(--ink);
+        -webkit-box-shadow: 0 0 0px 1000px var(--cream-alt) inset;
+        box-shadow: 0 0 0px 1000px var(--cream-alt) inset;
+        transition: background-color 5000s ease-in-out 0s;
+    }
 }
 
 @keyframes marquee {

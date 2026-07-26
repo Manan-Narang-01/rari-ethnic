@@ -24,6 +24,7 @@ import AdminProductForm from "@/pages/admin/AdminProductForm";
 import AdminCategories from "@/pages/admin/AdminCategories";
 import AdminCategoryForm from "@/pages/admin/AdminCategoryForm";
 import AdminOrders from "@/pages/admin/AdminOrders";
+import AdminExchanges from "@/pages/admin/AdminExchanges";
 import AdminSettings from "@/pages/admin/AdminSettings";
 import AdminCampaigns from "@/pages/admin/AdminCampaigns";
 import AdminCampaignForm from "@/pages/admin/AdminCampaignForm";
@@ -65,6 +66,7 @@ function App() {
                   <Route path="categories/new" element={<AdminCategoryForm mode="create" />} />
                   <Route path="categories/:id/edit" element={<AdminCategoryForm mode="edit" />} />
                   <Route path="orders" element={<AdminOrders />} />
+                  <Route path="exchanges" element={<AdminExchanges />} />
                   <Route path="settings" element={<AdminSettings />} />
                   <Route path="campaigns" element={<AdminCampaigns />} />
                   <Route path="campaigns/new" element={<AdminCampaignForm mode="create" />} />

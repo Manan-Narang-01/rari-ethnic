@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.database import get_database
 
@@ -18,6 +18,11 @@ class OrderRepository:
         return _coerce_created_at(doc) if doc else None
 
     @classmethod
+    async def get_by_id(cls, order_id: str) -> dict:
+        doc = await cls._collection().find_one({"id": order_id}, {"_id": 0})
+        return _coerce_created_at(doc) if doc else None
+
+    @classmethod
     async def list_all(cls) -> list:
         docs = await cls._collection().find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
         return [_coerce_created_at(d) for d in docs]
@@ -29,7 +34,12 @@ class OrderRepository:
 
     @classmethod
     async def update_status(cls, order_number: str, status: str) -> bool:
-        r = await cls._collection().update_one({"order_number": order_number}, {"$set": {"status": status}})
+        updates = {"status": status}
+        if status == "delivered":
+            existing = await cls._collection().find_one({"order_number": order_number}, {"delivered_at": 1})
+            if existing is not None and not existing.get("delivered_at"):
+                updates["delivered_at"] = datetime.now(timezone.utc).isoformat()
+        r = await cls._collection().update_one({"order_number": order_number}, {"$set": updates})
         return r.matched_count > 0
 
     @classmethod
@@ -40,6 +50,7 @@ class OrderRepository:
 
 
 def _coerce_created_at(doc: dict) -> dict:
-    if isinstance(doc.get("created_at"), str):
-        doc["created_at"] = datetime.fromisoformat(doc["created_at"])
+    for field in ("created_at", "delivered_at"):
+        if isinstance(doc.get(field), str):
+            doc[field] = datetime.fromisoformat(doc[field])
     return doc

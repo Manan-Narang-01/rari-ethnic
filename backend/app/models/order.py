@@ -39,6 +39,7 @@ class Order(OrderCreate):
     # Set when the request carried a valid access token; null for guest checkout.
     user_id: Optional[str] = None
     status: str = "confirmed"  # confirmed | dispatched | delivered | cancelled
+    delivered_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 

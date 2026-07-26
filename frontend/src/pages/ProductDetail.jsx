@@ -133,6 +133,11 @@ export const ProductDetail = () => {
               )}
             </div>
             <p className="text-xs text-[#6E7B85] mt-1">Inclusive of all taxes</p>
+            {product.shipping_enabled && (
+              <p className="text-xs text-[#A0684E] mt-1" data-testid="product-shipping-note">
+                + {formatINR(product.shipping_charge)} shipping charge applies to this item
+              </p>
+            )}
 
             <p className="mt-6 text-[#2A2E30]/85 leading-relaxed max-w-md">
               {product.description}

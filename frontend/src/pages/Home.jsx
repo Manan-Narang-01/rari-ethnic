@@ -4,6 +4,7 @@ import { api, buildWaLink, INSTAGRAM_URL } from "@/lib/api";
 import { useSite } from "@/context/SiteContext";
 import { ProductCard } from "@/components/ProductCard";
 import { CountdownTimer } from "@/components/CountdownTimer";
+import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import { images } from "@/assets/images";
 import { ArrowRight, Sparkles, Truck, ShieldCheck, HandHeart, Instagram } from "lucide-react";
 
@@ -142,36 +143,41 @@ export const Home = () => {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-          {CATEGORIES.map((c, i) => (
-            <Link
-              key={c.key}
-              to={`/shop/${c.key}`}
-              data-testid={`category-tile-${c.key}`}
-              className="group relative aspect-[4/5] overflow-hidden fade-up"
-              style={{ animationDelay: `${i * 100}ms` }}
-            >
-              <img
-                src={c.image}
-                alt={c.name}
-                className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
-              />
-              <div
-                className="absolute inset-0 transition-opacity"
-                style={{
-                  background: `linear-gradient(to bottom, rgba(43,33,30,0.15) 0%, ${c.color}CC 100%)`,
-                }}
-              />
-              <div className="absolute inset-0 flex flex-col justify-end p-6 text-[#E8E3D7]">
-                <span className="label-caps text-[#E8E3D7]/80">{c.tag}</span>
-                <h3 className="font-display text-4xl mt-1">{c.name}</h3>
-                <div className="mt-3 inline-flex items-center gap-2 text-sm opacity-0 group-hover:opacity-100 transition-opacity">
-                  Shop {c.name} <ArrowRight size={14} />
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+        <Carousel opts={{ align: "start", loop: true }} className="w-full">
+          <CarouselContent className="-ml-4 md:-ml-6">
+            {CATEGORIES.map((c, i) => (
+              <CarouselItem key={c.key} className="pl-4 md:pl-6 basis-[78%] sm:basis-1/2 md:basis-1/3">
+                <Link
+                  to={`/shop/${c.key}`}
+                  data-testid={`category-tile-${c.key}`}
+                  className="group relative aspect-[4/5] overflow-hidden block fade-up"
+                  style={{ animationDelay: `${i * 100}ms` }}
+                >
+                  <img
+                    src={c.image}
+                    alt={c.name}
+                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+                  />
+                  <div
+                    className="absolute inset-0 transition-opacity"
+                    style={{
+                      background: `linear-gradient(to bottom, rgba(43,33,30,0.15) 0%, ${c.color}CC 100%)`,
+                    }}
+                  />
+                  <div className="absolute inset-0 flex flex-col justify-end p-6 text-[#E8E3D7]">
+                    <span className="label-caps text-[#E8E3D7]/80">{c.tag}</span>
+                    <h3 className="font-display text-4xl mt-1">{c.name}</h3>
+                    <div className="mt-3 inline-flex items-center gap-2 text-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                      Shop {c.name} <ArrowRight size={14} />
+                    </div>
+                  </div>
+                </Link>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious className="left-2 border-none bg-[#E8E3D7]/90 hover:bg-[#E8E3D7] text-[#2A2E30]" />
+          <CarouselNext className="right-2 border-none bg-[#E8E3D7]/90 hover:bg-[#E8E3D7] text-[#2A2E30]" />
+        </Carousel>
       </section>
 
       {/* WHY */}

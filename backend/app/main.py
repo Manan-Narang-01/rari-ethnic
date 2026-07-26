@@ -7,12 +7,15 @@ from app import database
 from app.api.v1.router import api_router
 from app.config import settings
 from app.core.security import hash_password, verify_password
+from app.repositories.campaign_repo import CampaignRepository
 from app.repositories.cart_repo import CartRepository
 from app.repositories.category_repo import CategoryRepository
+from app.repositories.exchange_request_repo import ExchangeRequestRepository
 from app.repositories.order_repo import OrderRepository
 from app.repositories.password_reset_repo import PasswordResetRepository
 from app.repositories.product_repo import ProductRepository
 from app.repositories.session_repo import SessionRepository
+from app.repositories.site_settings_repo import SiteSettingsRepository
 from app.repositories.user_repo import UserRepository
 
 logging.basicConfig(
@@ -65,6 +68,9 @@ async def startup_tasks():
         await OrderRepository.ensure_indexes()
         await CategoryRepository.ensure_indexes()
         await CartRepository.ensure_indexes()
+        await SiteSettingsRepository.ensure_indexes()
+        await CampaignRepository.ensure_indexes()
+        await ExchangeRequestRepository.ensure_indexes()
     except Exception as e:
         logger.error("Index creation failed: %s", e)
 
@@ -85,6 +91,11 @@ async def startup_tasks():
         await ProductRepository.backfill_defaults()
     except Exception as e:
         logger.error("Product backfill failed: %s", e)
+
+    try:
+        await SiteSettingsRepository.ensure_defaults()
+    except Exception as e:
+        logger.error("Site settings seed failed: %s", e)
 
 
 @app.on_event("shutdown")
