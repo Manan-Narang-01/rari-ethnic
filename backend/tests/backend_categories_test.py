@@ -96,13 +96,13 @@ class TestCategories:
 
     def test_create_product_with_unknown_category_400(self, s, admin_headers):
         r = s.post(f"{API}/admin/products", headers=admin_headers, json={
-            "name": "TEST Product Bad Category", "category": "does-not-exist", "price": 999,
+            "name": "TEST Product Bad Category", "categories": ["does-not-exist"], "price": 999,
         })
         assert r.status_code == 400
 
     def test_delete_category_blocked_while_in_use(self, s, admin_headers):
         product = s.post(f"{API}/admin/products", headers=admin_headers, json={
-            "name": "TEST Product In Category", "category": TestCategories.category_key, "price": 999,
+            "name": "TEST Product In Category", "categories": [TestCategories.category_key], "price": 999,
         })
         assert product.status_code == 200, product.text
         product_id = product.json()["id"]

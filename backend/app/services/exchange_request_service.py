@@ -11,6 +11,9 @@ from app.models.exchange_request import (
 )
 from app.repositories.exchange_request_repo import ExchangeRequestRepository
 from app.repositories.order_repo import OrderRepository
+from app.repositories.user_repo import UserRepository
+from app.services.email_service import EmailService
+from app.services.email_templates import admin_new_exchange_email, exchange_status_email
 
 
 class ExchangeRequestService:
@@ -53,6 +56,12 @@ class ExchangeRequestService:
         doc["created_at"] = doc["created_at"].isoformat()
         doc["updated_at"] = doc["updated_at"].isoformat()
         await ExchangeRequestRepository.insert(doc)
+
+        staff_emails = await UserRepository.list_staff_emails()
+        if staff_emails:
+            subject, html = admin_new_exchange_email(doc)
+            await EmailService.send(staff_emails, subject, html)
+
         return request
 
     @staticmethod
@@ -68,4 +77,8 @@ class ExchangeRequestService:
 
         if not await ExchangeRequestRepository.update(request_id, updates):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exchange request not found")
-        return await ExchangeRequestRepository.get_by_id(request_id)
+
+        updated = await ExchangeRequestRepository.get_by_id(request_id)
+        subject, html = exchange_status_email(updated)
+        await EmailService.send(updated["email"], subject, html)
+        return updated

@@ -6,45 +6,53 @@ import { useSite } from "@/context/SiteContext";
 import { useAuth, isStaffRole } from "@/context/AuthContext";
 import { api, INSTAGRAM_URL } from "@/lib/api";
 
-// Non-category nav entries, always shown after the dynamic category links.
-const STATIC_NAV_TAIL = [
-  { to: "/navratri", label: "Navratri", accent: true },
-  { to: "/about", label: "About" },
-];
-
 // Used only if the categories fetch fails or returns nothing — keeps the
-// navbar from ever rendering empty.
-const FALLBACK_NAV = [
+// navbar from ever rendering empty. Note this is separate from the Navratri
+// *category* (a normal taxonomy entry, shown here like any other category if
+// it has show_in_navbar set) — the festive event-experience page is a
+// different thing, added conditionally below.
+const FALLBACK_CATEGORY_LINKS = [
   { to: "/shop/kurtis", label: "Kurtis" },
   { to: "/shop/suits", label: "Suits" },
   { to: "/shop/lehengas", label: "Lehengas" },
-  ...STATIC_NAV_TAIL,
 ];
 
 export const Header = () => {
   const { count, setIsOpen } = useCart();
-  const { settings } = useSite();
+  const { settings, campaign } = useSite();
   const { isAuthenticated, user } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [nav, setNav] = useState(FALLBACK_NAV);
+  const [categoryLinks, setCategoryLinks] = useState(FALLBACK_CATEGORY_LINKS);
   const accountHref = isAuthenticated ? (isStaffRole(user?.role) ? "/admin" : "/account") : "/login";
 
   useEffect(() => {
     api
       .get("/categories")
       .then((r) => {
-        const categoryLinks = r.data
+        const links = r.data
           .filter((c) => c.show_in_navbar)
           .map((c) => ({ to: `/shop/${c.key}`, label: c.name }));
-        setNav(categoryLinks.length ? [...categoryLinks, ...STATIC_NAV_TAIL] : FALLBACK_NAV);
+        setCategoryLinks(links.length ? links : FALLBACK_CATEGORY_LINKS);
       })
-      .catch(() => setNav(FALLBACK_NAV));
+      .catch(() => setCategoryLinks(FALLBACK_CATEGORY_LINKS));
   }, []);
+
+  // The festive event-experience page (NavratriLanding, /navratri) is managed
+  // entirely by the Events module: this link only exists while an event is
+  // active there, using that event's own name -- it is not a permanent
+  // standalone nav entry. This is separate from the "Navratri" *category*
+  // link above (if that category has show_in_navbar set), which is normal
+  // product browsing and stays independent of Events.
+  const nav = [
+    ...categoryLinks,
+    ...(campaign ? [{ to: "/navratri", label: campaign.name || "Navratri", accent: true }] : []),
+    { to: "/about", label: "About" },
+  ];
 
   const announcements =
     settings?.announcements?.length > 0
       ? settings.announcements
-      : ["Handcrafted in Surat", "Free shipping over ₹2,000", "Pan-India delivery in 4-7 days"];
+      : ["Handcrafted in Surat", "Free shipping", "Pan-India delivery in 4-7 days"];
   const instagramUrl = settings?.instagram_url || INSTAGRAM_URL;
   // Duplicate the list so the marquee scrolls seamlessly.
   const marquee = [...announcements, ...announcements];

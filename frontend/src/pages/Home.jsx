@@ -6,10 +6,58 @@ import { ProductCard } from "@/components/ProductCard";
 import { CountdownTimer } from "@/components/CountdownTimer";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import { images } from "@/assets/images";
+import { CroppedImage } from "@/components/CroppedImage";
 import { ArrowRight, Sparkles, Truck, ShieldCheck, HandHeart, Instagram } from "lucide-react";
 
 // Maps admin-configured icon names to lucide components.
 const ICONS = { HandHeart, ShieldCheck, Truck, Sparkles };
+
+const CategoryTile = ({ c, i }) => (
+  <Link
+    to={`/shop/${c.key}`}
+    data-testid={`category-tile-${c.key}`}
+    className="group relative aspect-square overflow-hidden block fade-up"
+    style={{ animationDelay: `${i * 100}ms` }}
+  >
+    <CroppedImage
+      src={c.image}
+      crop={c.image_crop}
+      alt={c.name}
+      className="transition-transform duration-700 group-hover:scale-110"
+    />
+    <div
+      className="absolute inset-0 opacity-70 group-hover:opacity-85 transition-opacity"
+      style={{ background: `linear-gradient(to bottom, rgba(43,33,30,0) 40%, ${c.color}E6 100%)` }}
+    />
+    <div className="absolute inset-0 flex flex-col justify-end p-4 text-[#E8E3D7]">
+      <span className="label-caps text-[#E8E3D7]/80 text-[10px]">{c.tag}</span>
+      <h3 className="font-display text-xl sm:text-2xl mt-0.5">{c.name}</h3>
+      <div className="mt-1 inline-flex items-center gap-1.5 text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+        Shop {c.name} <ArrowRight size={12} />
+      </div>
+    </div>
+  </Link>
+);
+
+const InstaTile = ({ tile, i, instagramUrl }) => (
+  <a
+    href={tile.post_url || instagramUrl}
+    target="_blank"
+    rel="noopener noreferrer"
+    data-testid={`instagram-tile-${i}`}
+    className="relative aspect-square overflow-hidden group block"
+  >
+    <CroppedImage
+      src={tile.image}
+      crop={tile.image_crop}
+      alt="Instagram feed"
+      className="transition-transform duration-700 group-hover:scale-110"
+    />
+    <div className="absolute inset-0 bg-[#2A2E30]/0 group-hover:bg-[#2A2E30]/60 transition-colors flex items-center justify-center">
+      <Instagram size={26} className="text-[#E8E3D7] opacity-0 group-hover:opacity-100 transition-opacity" />
+    </div>
+  </a>
+);
 
 const FALLBACK_CATEGORIES = [
   { key: "kurtis", name: "Kurtis", tag: "Everyday to festive", image: images.home.categories.kurtis, color: "#A0684E" },
@@ -47,6 +95,7 @@ export const Home = () => {
                 name: c.name,
                 tag: c.description || "",
                 image: c.image || images.home.categories[c.key] || images.home.hero,
+                image_crop: c.image_crop,
                 color: CATEGORY_TILE_COLORS[i % CATEGORY_TILE_COLORS.length],
               }))
             : FALLBACK_CATEGORIES
@@ -58,7 +107,11 @@ export const Home = () => {
   const hero = settings?.home_hero;
   const CATEGORIES = categoryTiles;
   const WHYS = settings?.home_why?.length ? settings.home_why : FALLBACK_WHYS;
-  const instaTiles = settings?.instagram_tiles?.length ? settings.instagram_tiles : images.home.instagram;
+  const instaTilesRaw = settings?.instagram_tiles?.length ? settings.instagram_tiles : images.home.instagram;
+  // Older settings docs (or the hardcoded fallback) store tiles as plain image
+  // URL strings; newer ones are {image, post_url} so each tile can link to its
+  // real Instagram post instead of just the profile.
+  const instaTiles = instaTilesRaw.map((t) => (typeof t === "string" ? { image: t, post_url: null } : t));
   const instagramUrl = settings?.instagram_url || INSTAGRAM_URL;
   const heroEyebrow = hero?.eyebrow || "Navratri Collection · 2026";
   const heroTitleLines = hero?.title_lines?.length ? hero.title_lines : ["Handcrafted", "for the days", "that matter."];
@@ -71,11 +124,7 @@ export const Home = () => {
       {/* HERO */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0">
-          <img
-            src={heroImage}
-            alt="Collection"
-            className="w-full h-full object-cover"
-          />
+          <CroppedImage src={heroImage} crop={hero?.image_crop} alt="Collection" />
           <div className="absolute inset-0 bg-gradient-to-b from-[#2A2E30]/70 via-[#2A2E30]/40 to-[#2A2E30]/85" />
         </div>
         <div className="mandala-overlay" style={{ opacity: 0.08 }} />
@@ -143,41 +192,25 @@ export const Home = () => {
           </Link>
         </div>
 
-        <Carousel opts={{ align: "start", loop: true }} className="w-full">
-          <CarouselContent className="-ml-4 md:-ml-6">
+        {CATEGORIES.length > 4 ? (
+          <Carousel opts={{ align: "start", loop: true }} className="w-full">
+            <CarouselContent className="-ml-2 md:-ml-4">
+              {CATEGORIES.map((c, i) => (
+                <CarouselItem key={c.key} className="pl-2 md:pl-4 basis-1/2 md:basis-1/4">
+                  <CategoryTile c={c} i={i} />
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="left-2 border-none bg-[#E8E3D7]/90 hover:bg-[#E8E3D7] text-[#2A2E30]" />
+            <CarouselNext className="right-2 border-none bg-[#E8E3D7]/90 hover:bg-[#E8E3D7] text-[#2A2E30]" />
+          </Carousel>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
             {CATEGORIES.map((c, i) => (
-              <CarouselItem key={c.key} className="pl-4 md:pl-6 basis-[78%] sm:basis-1/2 md:basis-1/3">
-                <Link
-                  to={`/shop/${c.key}`}
-                  data-testid={`category-tile-${c.key}`}
-                  className="group relative aspect-[4/5] overflow-hidden block fade-up"
-                  style={{ animationDelay: `${i * 100}ms` }}
-                >
-                  <img
-                    src={c.image}
-                    alt={c.name}
-                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
-                  />
-                  <div
-                    className="absolute inset-0 transition-opacity"
-                    style={{
-                      background: `linear-gradient(to bottom, rgba(43,33,30,0.15) 0%, ${c.color}CC 100%)`,
-                    }}
-                  />
-                  <div className="absolute inset-0 flex flex-col justify-end p-6 text-[#E8E3D7]">
-                    <span className="label-caps text-[#E8E3D7]/80">{c.tag}</span>
-                    <h3 className="font-display text-4xl mt-1">{c.name}</h3>
-                    <div className="mt-3 inline-flex items-center gap-2 text-sm opacity-0 group-hover:opacity-100 transition-opacity">
-                      Shop {c.name} <ArrowRight size={14} />
-                    </div>
-                  </div>
-                </Link>
-              </CarouselItem>
+              <CategoryTile key={c.key} c={c} i={i} />
             ))}
-          </CarouselContent>
-          <CarouselPrevious className="left-2 border-none bg-[#E8E3D7]/90 hover:bg-[#E8E3D7] text-[#2A2E30]" />
-          <CarouselNext className="right-2 border-none bg-[#E8E3D7]/90 hover:bg-[#E8E3D7] text-[#2A2E30]" />
-        </Carousel>
+          </div>
+        )}
       </section>
 
       {/* WHY */}
@@ -276,27 +309,25 @@ export const Home = () => {
           <h2 className="font-display text-3xl sm:text-4xl mt-2">@rari.ethnic</h2>
           <p className="text-sm text-[#6E7B85] mt-2">Real customers · styling tips · new drops first</p>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
-          {instaTiles.map((src, i) => (
-            <a
-              key={i}
-              href={instagramUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              data-testid={`instagram-tile-${i}`}
-              className="relative aspect-square overflow-hidden group"
-            >
-              <img
-                src={src}
-                alt="Instagram feed"
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-              />
-              <div className="absolute inset-0 bg-[#2A2E30]/0 group-hover:bg-[#2A2E30]/60 transition-colors flex items-center justify-center">
-                <Instagram size={26} className="text-[#E8E3D7] opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-            </a>
-          ))}
-        </div>
+        {instaTiles.length > 4 ? (
+          <Carousel opts={{ align: "start", loop: true }} className="w-full">
+            <CarouselContent className="-ml-2 md:-ml-4">
+              {instaTiles.map((tile, i) => (
+                <CarouselItem key={i} className="pl-2 md:pl-4 basis-1/2 md:basis-1/4">
+                  <InstaTile tile={tile} i={i} instagramUrl={instagramUrl} />
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="left-2 border-none bg-[#E8E3D7]/90 hover:bg-[#E8E3D7] text-[#2A2E30]" />
+            <CarouselNext className="right-2 border-none bg-[#E8E3D7]/90 hover:bg-[#E8E3D7] text-[#2A2E30]" />
+          </Carousel>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+            {instaTiles.map((tile, i) => (
+              <InstaTile key={i} tile={tile} i={i} instagramUrl={instagramUrl} />
+            ))}
+          </div>
+        )}
         <div className="text-center mt-8">
           <a
             href={instagramUrl}

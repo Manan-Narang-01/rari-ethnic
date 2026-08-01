@@ -11,6 +11,20 @@ class RegisterRequest(BaseModel):
     phone: Optional[str] = None
 
 
+class RegisterResponse(BaseModel):
+    message: str
+    email: str
+
+
+class VerifyOtpRequest(BaseModel):
+    email: EmailStr
+    code: str
+
+
+class ResendOtpRequest(BaseModel):
+    email: EmailStr
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str

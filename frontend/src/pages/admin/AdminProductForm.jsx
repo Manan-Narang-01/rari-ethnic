@@ -10,7 +10,7 @@ const OCCASIONS = ["Daily", "Office", "Festive", "Sangeet", "Wedding", "Receptio
 
 const emptyForm = {
   name: "",
-  category: "kurtis",
+  categories: [],
   price: "",
   compare_at_price: "",
   description: "",
@@ -37,14 +37,14 @@ export const AdminProductForm = ({ mode = "create" }) => {
   const { id } = useParams();
   const nav = useNavigate();
   const [form, setForm] = useState(emptyForm);
-  const [categories, setCategories] = useState([]);
+  const [allCategories, setAllCategories] = useState([]);
   const [loading, setLoading] = useState(mode === "edit");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
   useEffect(() => {
-    api.get("/admin/categories").then((r) => setCategories(r.data)).catch(() => toast.error("Could not load categories"));
+    api.get("/admin/categories").then((r) => setAllCategories(r.data)).catch(() => toast.error("Could not load categories"));
   }, []);
 
   useEffect(() => {
@@ -150,12 +150,13 @@ export const AdminProductForm = ({ mode = "create" }) => {
   const submit = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) return toast.error("Product name is required");
+    if (form.categories.length === 0) return toast.error("Select at least one category");
     if (!form.price || parseInt(form.price) < 1) return toast.error("Enter a valid price");
     if (form.images.length === 0) return toast.error("Upload at least one image");
     setSaving(true);
     const payload = {
       name: form.name.trim(),
-      category: form.category,
+      categories: form.categories,
       price: parseInt(form.price),
       compare_at_price: form.compare_at_price ? parseInt(form.compare_at_price) : null,
       description: form.description.trim(),
@@ -275,17 +276,38 @@ export const AdminProductForm = ({ mode = "create" }) => {
         <Card title="Basics">
           <div className="grid md:grid-cols-2 gap-5">
             <Field label="Product name" value={form.name} onChange={setField("name")} testid="admin-name" required />
-            <div>
-              <label className="label-caps">Category</label>
-              <select value={form.category} onChange={setField("category")} data-testid="admin-category" className="w-full mt-1 border-b border-[#8B9A9F]/40 bg-transparent py-2 outline-none focus:border-[#A0684E]">
-                {categories.map((c) => <option key={c.id} value={c.key}>{c.name}</option>)}
-              </select>
-            </div>
             <Field label="Price ₹" type="number" value={form.price} onChange={setField("price")} testid="admin-price" required />
             <Field label="Compare-at (strike-through) ₹" type="number" value={form.compare_at_price} onChange={setField("compare_at_price")} testid="admin-compare-price" />
             <Field label="Stock quantity" type="number" value={form.stock} onChange={setField("stock")} testid="admin-stock" />
             <Field label="Edit tag (e.g. Garba Ready)" value={form.edit_tag} onChange={setField("edit_tag")} testid="admin-edit-tag" />
           </div>
+        </Card>
+
+        {/* Categories */}
+        <Card title="Categories">
+          <p className="text-xs text-[#6E7B85] mb-3">
+            Assign this product to one or more categories — it'll show up under each on the storefront.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {allCategories.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => toggleArr("categories", c.key)}
+                data-testid={`admin-category-${c.key}`}
+                className={`px-3.5 py-2 border text-sm rounded-sm ${
+                  form.categories.includes(c.key)
+                    ? "bg-[#2A2E30] text-[#E8E3D7] border-[#2A2E30]"
+                    : "border-[#8B9A9F]/40 hover:border-[#2A2E30]"
+                }`}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+          {form.categories.length === 0 && (
+            <p className="text-xs text-[#A0684E] mt-3">Select at least one category.</p>
+          )}
         </Card>
 
         {/* Shipping */}
@@ -301,9 +323,9 @@ export const AdminProductForm = ({ mode = "create" }) => {
             <span className="text-sm">Charge shipping on this product</span>
           </label>
           <p className="text-xs text-[#6E7B85] mt-1.5">
-            When enabled, this charge is added to the order total instead of the
-            site-wide free-shipping rule — for products too heavy or bulky to
-            ship for the standard fee.
+            Shipping is free by default. Enable this only for products too
+            heavy or bulky to ship for free, and this charge will be added
+            to the order total whenever this product is in the cart.
           </p>
           {form.shipping_enabled && (
             <div className="mt-4 max-w-xs">

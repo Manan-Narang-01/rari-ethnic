@@ -35,6 +35,20 @@ class SiteSettingsRepository:
     async def ensure_indexes(cls) -> None:
         await cls._collection().create_index("id", unique=True)
 
+    @classmethod
+    async def backfill_instagram_tiles(cls) -> None:
+        """instagram_tiles used to be a plain list of image URL strings; it's
+        now a list of {image, post_url} objects so each tile can link to its
+        real Instagram post. Rewrites any old-shape string entries in place."""
+        doc = await cls._collection().find_one({"id": SETTINGS_ID})
+        if not doc:
+            return
+        tiles = doc.get("instagram_tiles") or []
+        if not any(isinstance(t, str) for t in tiles):
+            return
+        migrated = [{"image": t, "post_url": None} if isinstance(t, str) else t for t in tiles]
+        await cls._collection().update_one({"id": SETTINGS_ID}, {"$set": {"instagram_tiles": migrated}})
+
 
 def _coerce_updated_at(doc: dict) -> dict:
     if isinstance(doc.get("updated_at"), str):

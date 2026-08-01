@@ -42,7 +42,7 @@ export const uploadImage = async (file) => {
     : `${API}${r.data.url.replace(/^\/api/, "")}`;
 };
 
-export const WHATSAPP_NUMBER = "919316565117"; // no +
+export const WHATSAPP_NUMBER = "917600565117"; // no +
 export const INSTAGRAM_URL = "https://www.instagram.com/rari.ethnic";
 
 export const buildWaLink = (message) => {

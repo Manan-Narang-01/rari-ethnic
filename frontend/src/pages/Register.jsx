@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Navigate, useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { PasswordInput } from "@/components/PasswordInput";
 import { REGISTER } from "@/constants/testIds/auth";
 import { ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
@@ -9,7 +10,9 @@ export const Register = () => {
   const { isAuthenticated, register, loading } = useAuth();
   const [params] = useSearchParams();
   const nav = useNavigate();
-  const next = params.get("next") || "/account";
+  // First-time signup lands on the home page unless the user was sent here
+  // from a gated flow (e.g. checkout), in which case honor that destination.
+  const next = params.get("next") || "/";
   const [form, setForm] = useState({ name: "", email: "", password: "", passwordConfirm: "" });
   const [busy, setBusy] = useState(false);
 
@@ -24,9 +27,9 @@ export const Register = () => {
     if (form.password !== form.passwordConfirm) return toast.error("Passwords don't match");
     setBusy(true);
     try {
-      await register(form.name.trim(), form.email.trim(), form.password);
-      toast.success("Account created");
-      nav(next, { replace: true });
+      const email = form.email.trim();
+      await register(form.name.trim(), email, form.password);
+      nav(`/verify-otp?email=${encodeURIComponent(email)}${next !== "/" ? `&next=${encodeURIComponent(next)}` : ""}`);
     } catch (err) {
       const msg =
         typeof err?.response?.data?.detail === "string"
@@ -75,9 +78,8 @@ export const Register = () => {
             </div>
             <div>
               <label className="label-caps text-[#2A2E30]">Password</label>
-              <input
+              <PasswordInput
                 required
-                type="password"
                 value={form.password}
                 onChange={setField("password")}
                 data-testid={REGISTER.passwordInput}
@@ -86,9 +88,8 @@ export const Register = () => {
             </div>
             <div>
               <label className="label-caps text-[#2A2E30]">Confirm password</label>
-              <input
+              <PasswordInput
                 required
-                type="password"
                 value={form.passwordConfirm}
                 onChange={setField("passwordConfirm")}
                 data-testid={REGISTER.passwordConfirmInput}
@@ -108,7 +109,7 @@ export const Register = () => {
           <div className="mt-6 pt-6 border-t border-[#2A2E30]/10 text-center text-sm text-[#6E7B85]">
             Already have an account?{" "}
             <Link
-              to={`/login${next !== "/account" ? `?next=${encodeURIComponent(next)}` : ""}`}
+              to={`/login${next !== "/" ? `?next=${encodeURIComponent(next)}` : ""}`}
               data-testid={REGISTER.loginLink}
               className="text-[#A0684E] hover:underline"
             >

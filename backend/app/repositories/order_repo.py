@@ -33,6 +33,11 @@ class OrderRepository:
         return [_coerce_created_at(d) for d in docs]
 
     @classmethod
+    async def update_by_order_number(cls, order_number: str, updates: dict) -> bool:
+        r = await cls._collection().update_one({"order_number": order_number}, {"$set": updates})
+        return r.matched_count > 0
+
+    @classmethod
     async def update_status(cls, order_number: str, status: str) -> bool:
         updates = {"status": status}
         if status == "delivered":

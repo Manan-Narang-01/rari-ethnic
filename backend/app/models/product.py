@@ -11,7 +11,7 @@ class Product(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     slug: str
     name: str
-    category: str  # suits | kurtis | lehengas
+    categories: List[str]  # keys into the Category taxonomy, e.g. ["kurtis", "navratri"]
     price: int
     compare_at_price: Optional[int] = None
     description: str
@@ -41,7 +41,7 @@ class Product(BaseModel):
 class ProductCreate(BaseModel):
     slug: Optional[str] = None
     name: str
-    category: str
+    categories: List[str]
     price: int
     compare_at_price: Optional[int] = None
     description: str = ""
@@ -67,7 +67,7 @@ class ProductCreate(BaseModel):
 class ProductUpdate(BaseModel):
     slug: Optional[str] = None
     name: Optional[str] = None
-    category: Optional[str] = None
+    categories: Optional[List[str]] = None
     price: Optional[int] = None
     compare_at_price: Optional[int] = None
     description: Optional[str] = None

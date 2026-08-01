@@ -29,7 +29,12 @@ class CategoryService:
 
     @staticmethod
     async def update(category_id: str, payload: CategoryUpdate) -> dict:
-        updates = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v is not None}
+        # image_crop is allowed through even when explicitly None -- that's how
+        # the admin clears a stale crop after swapping in a new image, and
+        # exclude_unset already guarantees it's only present when the client
+        # actually sent it.
+        raw = payload.model_dump(exclude_unset=True)
+        updates = {k: v for k, v in raw.items() if v is not None or k == "image_crop"}
         if "key" in updates and await CategoryRepository.key_exists(updates["key"], exclude_id=category_id):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Category key already exists")
 
@@ -46,7 +51,7 @@ class CategoryService:
         # Check every product, not just active/public ones -- a hidden (is_active=False)
         # product still referencing this category should still block deletion.
         all_products = await ProductRepository.list_all()
-        in_use = [p for p in all_products if p.get("category") == category["key"]]
+        in_use = [p for p in all_products if category["key"] in (p.get("categories") or [])]
         if in_use:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,

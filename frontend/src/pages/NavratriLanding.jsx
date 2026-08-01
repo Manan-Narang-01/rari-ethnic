@@ -1,29 +1,32 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useSite } from "@/context/SiteContext";
 import { ProductCard } from "@/components/ProductCard";
 import { CountdownTimer } from "@/components/CountdownTimer";
 import { images } from "@/assets/images";
+import { CroppedImage } from "@/components/CroppedImage";
 import { ArrowRight, Flame, Sparkles } from "lucide-react";
 
+// Shape matches the generic EventAttributeItem the backend now stores
+// (order/title/description/color) rather than a Navratri-specific field.
 const FALLBACK_DAYS = [
-  { day: 1, name: "Orange", hex: "#E27D2C", meaning: "Energy & vitality" },
-  { day: 2, name: "White", hex: "#F3EDE4", meaning: "Peace & purity" },
-  { day: 3, name: "Red", hex: "#7E1F35", meaning: "Passion & power" },
-  { day: 4, name: "Royal Blue", hex: "#1E3A5F", meaning: "Wisdom & calm" },
-  { day: 5, name: "Yellow", hex: "#DCA537", meaning: "Joy & brightness" },
-  { day: 6, name: "Green", hex: "#185D64", meaning: "Growth & fertility" },
-  { day: 7, name: "Grey", hex: "#8A8078", meaning: "Balance & strength" },
-  { day: 8, name: "Purple", hex: "#98285D", meaning: "Ambition & pride" },
-  { day: 9, name: "Peacock Green", hex: "#0F6E5E", meaning: "Uniqueness" },
+  { order: 1, title: "Orange", color: "#E27D2C", description: "Energy & vitality" },
+  { order: 2, title: "White", color: "#F3EDE4", description: "Peace & purity" },
+  { order: 3, title: "Red", color: "#7E1F35", description: "Passion & power" },
+  { order: 4, title: "Royal Blue", color: "#1E3A5F", description: "Wisdom & calm" },
+  { order: 5, title: "Yellow", color: "#DCA537", description: "Joy & brightness" },
+  { order: 6, title: "Green", color: "#185D64", description: "Growth & fertility" },
+  { order: 7, title: "Grey", color: "#8A8078", description: "Balance & strength" },
+  { order: 8, title: "Purple", color: "#98285D", description: "Ambition & pride" },
+  { order: 9, title: "Peacock Green", color: "#0F6E5E", description: "Uniqueness" },
 ];
 
 const FALLBACK_HERO = images.navratri.hero;
 const FALLBACK_SECONDARY = images.navratri.heroSecondary;
 
 export const NavratriLanding = () => {
-  const { campaign } = useSite();
+  const { campaign, loading } = useSite();
   const [products, setProducts] = useState([]);
 
   useEffect(() => {
@@ -33,7 +36,17 @@ export const NavratriLanding = () => {
     return () => document.body.classList.remove("festive-mode");
   }, []);
 
-  const NAVRATRI_DAYS = campaign?.day_colors?.length ? campaign.day_colors : FALLBACK_DAYS;
+  // This page is managed entirely by the Events module -- it isn't a
+  // standalone route, so without an active campaign it isn't reachable at
+  // all. The separate Navratri *category* page (/shop/navratri) is untouched
+  // by this and stays independently accessible regardless of Events state.
+  if (loading) return null;
+  if (!campaign) return <Navigate to="/" replace />;
+
+  // The Events module no longer has a Navratri-specific "day colours" field --
+  // it's just one attribute group among any this event defines, found by key.
+  const dayColoursGroup = campaign?.attribute_groups?.find((g) => g.key === "day-colours");
+  const NAVRATRI_DAYS = dayColoursGroup?.items?.length ? dayColoursGroup.items : FALLBACK_DAYS;
   const MATA_HERO = campaign?.hero_image || FALLBACK_HERO;
   const MATA_SECONDARY = campaign?.hero_secondary_image || FALLBACK_SECONDARY;
   const heroEyebrow = campaign?.hero_eyebrow || "Navratri Edit · 2026";
@@ -55,10 +68,11 @@ export const NavratriLanding = () => {
       <section className="relative overflow-hidden">
         {/* Background layers */}
         <div className="absolute inset-0">
-          <img
+          <CroppedImage
             src={MATA_HERO}
+            crop={campaign?.hero_image_crop}
             alt="Maa Durga"
-            className="w-full h-full object-cover object-center opacity-55"
+            className="opacity-55"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-[#3E0714]/85 via-[#5A1424]/75 to-[#3E0714]" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#3E0714] via-transparent to-[#3E0714]/70" />
@@ -136,11 +150,7 @@ export const NavratriLanding = () => {
               {/* Gold frame effect */}
               <div className="absolute -inset-2 border border-[#F4C842]/40 rounded-sm" />
               <div className="absolute -inset-4 border border-[#F4C842]/20 rounded-sm" />
-              <img
-                src={MATA_SECONDARY}
-                alt="Maa Durga"
-                className="w-full h-full object-cover relative"
-              />
+              <CroppedImage src={MATA_SECONDARY} crop={campaign?.hero_secondary_image_crop} alt="Maa Durga" />
               {/* Diya-style glow */}
               <div
                 className="absolute -top-4 -right-4 w-16 h-16 rounded-full pointer-events-none"
@@ -239,19 +249,19 @@ export const NavratriLanding = () => {
           <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-3">
             {NAVRATRI_DAYS.map((d, i) => (
               <div
-                key={d.day}
-                data-testid={`nav-day-${d.day}`}
+                key={d.order}
+                data-testid={`nav-day-${d.order}`}
                 className="text-center group cursor-default fade-up"
                 style={{ animationDelay: `${i * 40}ms` }}
               >
                 <div
                   className="aspect-square rounded-full mx-auto transition-transform duration-500 group-hover:scale-105 shadow-[0_10px_30px_-8px_rgba(244,200,66,0.4)] border-2 border-[#F4C842]/30"
-                  style={{ backgroundColor: d.hex }}
+                  style={{ backgroundColor: d.color }}
                 />
-                <div className="font-display text-lg mt-3 text-[#F4C842]">Day {d.day}</div>
-                <div className="text-[11px] text-[#F5E9C9]/80 mt-0.5">{d.name}</div>
+                <div className="font-display text-lg mt-3 text-[#F4C842]">Day {d.order}</div>
+                <div className="text-[11px] text-[#F5E9C9]/80 mt-0.5">{d.title}</div>
                 <div className="text-[10px] text-[#F5E9C9]/50 italic hidden md:block mt-1">
-                  {d.meaning}
+                  {d.description}
                 </div>
               </div>
             ))}

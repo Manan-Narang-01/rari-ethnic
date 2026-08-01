@@ -9,9 +9,12 @@ from app.schemas.auth import (
     LogoutRequest,
     RefreshRequest,
     RegisterRequest,
+    RegisterResponse,
+    ResendOtpRequest,
     ResetPasswordRequest,
     TokenResponse,
     UserOut,
+    VerifyOtpRequest,
 )
 from app.services.auth_service import AuthService
 
@@ -19,10 +22,22 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
 
 
-@router.post("/register", response_model=TokenResponse)
+@router.post("/register", response_model=RegisterResponse)
 async def register(payload: RegisterRequest):
     user = await AuthService.register_customer(payload.name, payload.email, payload.password, payload.phone)
+    return {"message": "Check your email for a verification code.", "email": user["email"]}
+
+
+@router.post("/verify-otp", response_model=TokenResponse)
+async def verify_otp(payload: VerifyOtpRequest):
+    user = await AuthService.verify_registration_otp(payload.email, payload.code)
     return await AuthService.issue_tokens(user)
+
+
+@router.post("/resend-otp")
+async def resend_otp(payload: ResendOtpRequest):
+    await AuthService.resend_registration_otp(payload.email)
+    return {"message": "If that account needs verifying, a new code has been sent."}
 
 
 @router.post("/login", response_model=TokenResponse)

@@ -31,3 +31,9 @@ export const REGISTER = {
 export const LOGOUT = {
 	button: 'logout-button',
 };
+
+export const VERIFY_OTP = {
+	codeInput: 'verify-otp-code-input',
+	submitButton: 'verify-otp-submit-button',
+	resendButton: 'verify-otp-resend-button',
+};

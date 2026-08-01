@@ -30,7 +30,7 @@ class TestProducts:
         data = r.json()
         assert isinstance(data, list)
         assert len(data) == 12, f"Expected 12 seeded products, got {len(data)}"
-        required = {"id", "slug", "name", "category", "price", "images",
+        required = {"id", "slug", "name", "categories", "price", "images",
                     "sizes", "fabric", "care", "fit_notes", "occasion", "stock",
                     "is_bestseller", "is_new", "is_navratri", "edit_tag"}
         missing = required - set(data[0].keys())
@@ -43,17 +43,17 @@ class TestProducts:
         assert r.status_code == 200
         items = r.json()
         assert len(items) > 0
-        assert all(p["category"] == "kurtis" for p in items)
+        assert all("kurtis" in p["categories"] for p in items)
 
     def test_filter_by_category_suits(self, s):
         r = s.get(f"{API}/products", params={"category": "suits"})
         assert r.status_code == 200
-        assert all(p["category"] == "suits" for p in r.json())
+        assert all("suits" in p["categories"] for p in r.json())
 
     def test_filter_by_category_lehengas(self, s):
         r = s.get(f"{API}/products", params={"category": "lehengas"})
         assert r.status_code == 200
-        assert all(p["category"] == "lehengas" for p in r.json())
+        assert all("lehengas" in p["categories"] for p in r.json())
 
     def test_filter_is_bestseller(self, s):
         r = s.get(f"{API}/products", params={"is_bestseller": "true"})
@@ -82,7 +82,7 @@ class TestProducts:
         p = r.json()
         assert p["slug"] == "meher-maroon-kurti"
         assert p["name"] == "Meher Maroon Chikankari Kurti"
-        assert p["category"] == "kurtis"
+        assert "kurtis" in p["categories"]
         assert p["price"] == 1599
 
     def test_get_product_unknown_slug_404(self, s):

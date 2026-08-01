@@ -31,6 +31,10 @@ class Settings:
 
     cors_origins: list = os.environ.get("CORS_ORIGINS", "*").split(",")
     backend_public_url: str = os.environ.get("BACKEND_PUBLIC_URL", "")
+    # Used to build links inside emails (password reset, etc.). Falls back to
+    # the first configured CORS origin so this doesn't need separate setup
+    # in the common case where that's already the storefront's real URL.
+    frontend_public_url: str = os.environ.get("FRONTEND_PUBLIC_URL", "") or os.environ.get("CORS_ORIGINS", "").split(",")[0]
     emergent_llm_key: str = os.environ.get("EMERGENT_LLM_KEY", "")
 
     # Customer-facing Google Sign-In. Dev login is a passwordless fallback for
@@ -38,6 +42,8 @@ class Settings:
     # google_client_id is unset (or explicitly via ALLOW_DEV_LOGIN=true).
     google_client_id: str = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
     allow_dev_login: bool = os.environ.get("ALLOW_DEV_LOGIN", "").strip().lower() == "true"
+
+    credentials_encryption_key: str = os.environ["CREDENTIALS_ENCRYPTION_KEY"]
 
 
 settings = Settings()

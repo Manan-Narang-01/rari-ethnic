@@ -1,14 +1,16 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { api, uploadImage } from "@/lib/api";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { ChevronLeft, ImageUp, Loader2 } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
+import { ImageCropField } from "@/components/admin/ImageCropField";
 
 const emptyForm = {
   key: "",
   name: "",
   description: "",
   image: "",
+  image_crop: null,
   sort_order: 0,
   is_active: true,
   show_in_navbar: true,
@@ -50,6 +52,7 @@ export const AdminCategoryForm = ({ mode = "create" }) => {
       name: form.name.trim(),
       description: form.description.trim(),
       image: form.image.trim() || null,
+      image_crop: form.image_crop || null,
       sort_order: parseInt(form.sort_order) || 0,
       is_active: form.is_active,
       show_in_navbar: form.show_in_navbar,
@@ -94,7 +97,14 @@ export const AdminCategoryForm = ({ mode = "create" }) => {
             testid="admin-category-key"
           />
           <Field label="Description" value={form.description} onChange={setField("description")} textarea rows={3} testid="admin-category-description" />
-          <ImageField label="Catalog cover photo" value={form.image} onChange={(url) => setForm((f) => ({ ...f, image: url }))} />
+          <ImageCropField
+            label="Catalog cover photo"
+            value={form.image}
+            onChange={(url) => setForm((f) => ({ ...f, image: url }))}
+            crop={form.image_crop}
+            onCropChange={(c) => setForm((f) => ({ ...f, image_crop: c }))}
+            aspect={1}
+          />
           <Field label="Sort order" type="number" value={form.sort_order} onChange={setField("sort_order")} testid="admin-category-sort-order" />
           <div className="space-y-2">
             <label className="flex items-center gap-2 cursor-pointer">
@@ -174,56 +184,6 @@ const Field = ({ label, value, onChange, type = "text", textarea, rows = 2, plac
         className="w-full mt-1 border-b border-[#8B9A9F]/40 bg-transparent py-2 outline-none focus:border-[#A0684E]"
       />
     )}
-  </div>
-);
-
-// Upload button that reports the resulting URL — click opens the browser's
-// native file/folder picker to choose an image from your computer.
-const UploadInline = ({ onUploaded }) => {
-  const [busy, setBusy] = useState(false);
-  const onFile = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setBusy(true);
-    try {
-      const url = await uploadImage(file);
-      onUploaded(url);
-      toast.success("Image uploaded");
-    } catch {
-      toast.error("Upload failed");
-    } finally {
-      setBusy(false);
-      e.target.value = "";
-    }
-  };
-  return (
-    <label className="inline-flex items-center gap-1.5 text-xs text-[#A0684E] cursor-pointer">
-      {busy ? <Loader2 size={13} className="animate-spin" /> : <ImageUp size={13} />}
-      {busy ? "Uploading…" : "Choose file…"}
-      <input type="file" accept="image/*" onChange={onFile} className="hidden" />
-    </label>
-  );
-};
-
-// Image field: live preview + paste-a-URL fallback + upload-from-computer.
-const ImageField = ({ label, value, onChange }) => (
-  <div>
-    <label className="label-caps">{label}</label>
-    <div className="flex gap-3 items-start mt-1">
-      {value && <img src={value} alt="" className="w-16 h-16 object-cover rounded-sm bg-[#DDD5C4]" />}
-      <div className="flex-1">
-        <input
-          value={value ?? ""}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="Paste an image URL, or upload one below"
-          data-testid="admin-category-image"
-          className="w-full border-b border-[#8B9A9F]/40 bg-transparent py-2 outline-none focus:border-[#A0684E]"
-        />
-        <div className="mt-1.5">
-          <UploadInline onUploaded={onChange} />
-        </div>
-      </div>
-    </div>
   </div>
 );
 

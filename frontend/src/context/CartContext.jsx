@@ -1,12 +1,10 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { useSite } from "@/context/SiteContext";
 
 const CartContext = createContext(null);
 
 const STORAGE_KEY = "rari_cart_v1";
 
 export const CartProvider = ({ children }) => {
-  const { settings } = useSite();
   const [items, setItems] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -68,18 +66,14 @@ export const CartProvider = ({ children }) => {
     () => items.reduce((s, i) => s + i.quantity, 0),
     [items]
   );
-  const threshold = settings?.free_shipping_threshold ?? 2000;
-  const fee = settings?.shipping_fee ?? 99;
-  // A shipping-enabled product's own charge replaces the free-shipping-threshold
-  // rule for the whole order (see backend OrderService, which is authoritative —
-  // this mirrors it purely so the customer sees the real total before checkout).
+  // Shipping is opt-in per product (see backend OrderService, which is
+  // authoritative — this mirrors it purely so the customer sees the real
+  // total before checkout). No shipping-enabled items means free shipping.
   const shippingSurchargeItems = items.filter((i) => i.shipping_enabled);
   const hasShippingSurcharge = shippingSurchargeItems.length > 0;
   const shipping = hasShippingSurcharge
     ? shippingSurchargeItems.reduce((s, i) => s + i.shipping_charge * i.quantity, 0)
-    : subtotal >= threshold || subtotal === 0
-    ? 0
-    : fee;
+    : 0;
   const total = subtotal + shipping;
 
   return (

@@ -5,10 +5,9 @@ from fastapi import HTTPException, status
 from app.models.order import Order, OrderCreate, OrderItem
 from app.repositories.order_repo import OrderRepository
 from app.repositories.product_repo import ProductRepository
-from app.repositories.site_settings_repo import SiteSettingsRepository
-
-DEFAULT_FREE_SHIPPING_THRESHOLD = 2000
-DEFAULT_SHIPPING_FEE = 99
+from app.repositories.user_repo import UserRepository
+from app.services.email_service import EmailService
+from app.services.email_templates import admin_new_order_email, order_confirmed_email, order_status_email
 
 
 class OrderService:
@@ -49,15 +48,17 @@ class OrderService:
                 image=(product.get("images") or [None])[0],
             ))
 
-        if has_shipping_override:
-            shipping = shipping_surcharge
-        else:
-            site_settings = await SiteSettingsRepository.get()
-            threshold = site_settings["free_shipping_threshold"] if site_settings else DEFAULT_FREE_SHIPPING_THRESHOLD
-            fee = site_settings["shipping_fee"] if site_settings else DEFAULT_SHIPPING_FEE
-            shipping = 0 if subtotal >= threshold else fee
+        # Shipping is opt-in per product -- no site-wide default fee applies.
+        # An order with no shipping-enabled items always ships free.
+        shipping = shipping_surcharge if has_shipping_override else 0
 
         total = subtotal + shipping
+
+        # Online-payment orders sit as pending_payment until
+        # RazorpayService.verify_payment confirms the signature server-side
+        # (see api/v1/orders.py) -- only COD is trusted to go straight to
+        # confirmed, since no payment step happens for it.
+        initial_status = "pending_payment" if payload.payment_method == "razorpay" else "confirmed"
 
         order = Order(
             **payload.model_dump(exclude={"items", "subtotal", "shipping", "total"}),
@@ -66,9 +67,37 @@ class OrderService:
             shipping=shipping,
             total=total,
             user_id=user_id,
+            status=initial_status,
         )
         doc = order.model_dump()
         doc["created_at"] = doc["created_at"].isoformat()
         doc["items"] = [i.model_dump() for i in resolved_items]
         await OrderRepository.insert(doc)
+
+        if initial_status == "confirmed":
+            await OrderService.notify_confirmed(doc)
+
         return order
+
+    @staticmethod
+    async def notify_confirmed(order_doc: dict) -> None:
+        """Fires the 'order confirmed' customer email + 'new order' admin
+        alert. Called for COD orders immediately on creation, and for
+        online-payment orders only after RazorpayService.verify_payment
+        succeeds (see api/v1/payments.py) -- never on a merely-attempted
+        payment, since pending_payment orders may never complete."""
+        subject, html = order_confirmed_email(order_doc)
+        await EmailService.send(order_doc["email"], subject, html)
+
+        staff_emails = await UserRepository.list_staff_emails()
+        if staff_emails:
+            subject, html = admin_new_order_email(order_doc)
+            await EmailService.send(staff_emails, subject, html)
+
+    @staticmethod
+    async def notify_status_change(order_doc: dict, new_status: str) -> None:
+        """Customer-facing status update email (dispatched/delivered/cancelled)."""
+        if new_status not in ("dispatched", "delivered", "cancelled"):
+            return
+        subject, html = order_status_email(order_doc, new_status)
+        await EmailService.send(order_doc["email"], subject, html)

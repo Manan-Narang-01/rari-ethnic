@@ -8,12 +8,30 @@ import { toast } from "sonner";
 
 const STEPS = ["Contact", "Address", "Payment"];
 
+// Loads Razorpay's checkout widget script once and reuses it on subsequent
+// checkouts in the same session, instead of re-injecting the <script> tag.
+let razorpayScriptPromise = null;
+const loadRazorpayScript = () => {
+  if (window.Razorpay) return Promise.resolve();
+  if (!razorpayScriptPromise) {
+    razorpayScriptPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = resolve;
+      script.onerror = () => { razorpayScriptPromise = null; reject(new Error("Could not load Razorpay")); };
+      document.body.appendChild(script);
+    });
+  }
+  return razorpayScriptPromise;
+};
+
 export const Checkout = () => {
   const { items, subtotal, shipping, total, clear } = useCart();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [razorpay, setRazorpay] = useState(null); // { public_key } once loaded, or null if disabled
   const [form, setForm] = useState({
     customer_name: "",
     email: "",
@@ -37,6 +55,16 @@ export const Checkout = () => {
       }));
     }
   }, [user]);
+
+  useEffect(() => {
+    api
+      .get("/payment-methods")
+      .then((r) => {
+        const rzp = r.data.find((m) => m.provider === "razorpay");
+        if (rzp?.public_key) setRazorpay(rzp);
+      })
+      .catch(() => {});
+  }, []);
 
   const setField = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
@@ -65,31 +93,80 @@ export const Checkout = () => {
   };
   const back = () => setStep((s) => Math.max(s - 1, 0));
 
+  const buildPayload = () => ({
+    ...form,
+    items: items.map((i) => ({
+      product_id: i.product_id,
+      slug: i.slug,
+      name: i.name,
+      price: i.price,
+      quantity: i.quantity,
+      size: i.size,
+      image: i.image,
+    })),
+    subtotal,
+    shipping,
+    total,
+  });
+
+  const payWithRazorpay = async (orderNumber) => {
+    await loadRazorpayScript();
+    const { data: session } = await api.post(`/orders/${orderNumber}/razorpay/create-order`);
+
+    return new Promise((resolve, reject) => {
+      const rzp = new window.Razorpay({
+        key: session.key_id,
+        amount: session.amount,
+        currency: session.currency,
+        order_id: session.razorpay_order_id,
+        name: "Rari Ethnic",
+        description: `Order ${orderNumber}`,
+        prefill: { name: form.customer_name, email: form.email, contact: form.phone },
+        theme: { color: "#A0684E" },
+        handler: async (response) => {
+          try {
+            await api.post(`/orders/${orderNumber}/razorpay/verify`, {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+            resolve();
+          } catch (e) {
+            reject(new Error("We couldn't confirm your payment. If money was deducted, it'll be refunded — please contact us on WhatsApp with this order number."));
+          }
+        },
+        modal: {
+          ondismiss: () => reject(new Error("cancelled")),
+        },
+      });
+      rzp.on("payment.failed", () => reject(new Error("Payment failed. Please try again or use Cash on Delivery.")));
+      rzp.open();
+    });
+  };
+
   const placeOrder = async () => {
     if (items.length === 0) return;
     setSubmitting(true);
     try {
-      const payload = {
-        ...form,
-        items: items.map((i) => ({
-          product_id: i.product_id,
-          slug: i.slug,
-          name: i.name,
-          price: i.price,
-          quantity: i.quantity,
-          size: i.size,
-          image: i.image,
-        })),
-        subtotal,
-        shipping,
-        total,
-      };
+      const payload = { ...buildPayload(), payment_method: form.payment_method === "razorpay" ? "razorpay" : "COD" };
       const res = await api.post("/orders", payload);
+      const orderNumber = res.data.order_number;
+
+      if (form.payment_method === "razorpay") {
+        try {
+          await payWithRazorpay(orderNumber);
+        } catch (e) {
+          if (e.message !== "cancelled") toast.error(e.message);
+          // Order stays pending_payment either way — customer can retry from their order history.
+          setSubmitting(false);
+          return;
+        }
+      }
+
       clear();
-      navigate(`/order/${res.data.order_number}`);
+      navigate(`/order/${orderNumber}`);
     } catch (e) {
       toast.error("Could not place order. Try again.");
-    } finally {
       setSubmitting(false);
     }
   };
@@ -186,10 +263,17 @@ export const Checkout = () => {
               <div className="space-y-5" data-testid="step-payment">
                 <h3 className="font-display text-2xl">Payment method</h3>
                 <label
-                  className="flex items-start gap-4 p-5 border-2 border-[#A0684E] rounded-sm bg-[#A0684E]/5 cursor-pointer"
+                  className={`flex items-start gap-4 p-5 border-2 rounded-sm cursor-pointer ${
+                    form.payment_method === "COD" ? "border-[#A0684E] bg-[#A0684E]/5" : "border-[#2A2E30]/15"
+                  }`}
                   data-testid="payment-cod"
                 >
-                  <input type="radio" checked readOnly className="mt-1 accent-[#A0684E]" />
+                  <input
+                    type="radio"
+                    checked={form.payment_method === "COD"}
+                    onChange={() => setForm({ ...form, payment_method: "COD" })}
+                    className="mt-1 accent-[#A0684E]"
+                  />
                   <div>
                     <div className="font-display text-xl">Cash on Delivery</div>
                     <p className="text-sm text-[#6E7B85] mt-1">
@@ -197,13 +281,26 @@ export const Checkout = () => {
                     </p>
                   </div>
                 </label>
-                <div className="flex items-start gap-4 p-5 border border-[#2A2E30]/15 rounded-sm opacity-60">
-                  <input type="radio" disabled className="mt-1" />
+                <label
+                  className={`flex items-start gap-4 p-5 border-2 rounded-sm ${
+                    razorpay ? "cursor-pointer" : "opacity-60 cursor-not-allowed"
+                  } ${form.payment_method === "razorpay" ? "border-[#A0684E] bg-[#A0684E]/5" : "border-[#2A2E30]/15"}`}
+                  data-testid="payment-razorpay"
+                >
+                  <input
+                    type="radio"
+                    disabled={!razorpay}
+                    checked={form.payment_method === "razorpay"}
+                    onChange={() => setForm({ ...form, payment_method: "razorpay" })}
+                    className="mt-1 accent-[#A0684E]"
+                  />
                   <div>
                     <div className="font-display text-xl">UPI / Cards / Wallets</div>
-                    <p className="text-sm text-[#6E7B85] mt-1">Coming soon — for now, please use COD.</p>
+                    <p className="text-sm text-[#6E7B85] mt-1">
+                      {razorpay ? "Pay securely via Razorpay — UPI, cards, netbanking & wallets." : "Coming soon — for now, please use COD."}
+                    </p>
                   </div>
-                </div>
+                </label>
                 <div className="bg-[#DDD5C4] p-4 rounded-sm text-sm text-[#2A2E30]/80 leading-relaxed">
                   By placing this order you agree to Rari Ethnic's shipping and
                   exchange policy. Delivery in 4–7 days. We do not offer returns

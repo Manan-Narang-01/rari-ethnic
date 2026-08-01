@@ -1,6 +1,6 @@
 import { Link, NavLink, Outlet, useNavigate, Navigate } from "react-router-dom";
 import { useAuth, STAFF_ROLES, isStaffRole } from "@/context/AuthContext";
-import { LogOut, Package, ShoppingBag, Plus, Home, Settings, CalendarClock, Tags, RefreshCw } from "lucide-react";
+import { LogOut, Package, ShoppingBag, Plus, Home, Settings, CalendarClock, Tags, RefreshCw, CreditCard } from "lucide-react";
 import { Toaster } from "sonner";
 
 // Centralized, role-filtered sidebar config. A future Super-Admin-only page
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { to: "/admin/exchanges", icon: RefreshCw, label: "Exchanges", testid: "admin-nav-exchanges", roles: STAFF_ROLES },
   { to: "/admin/campaigns", icon: CalendarClock, label: "Events", testid: "admin-nav-campaigns", roles: STAFF_ROLES },
   { to: "/admin/settings", icon: Settings, label: "Site settings", testid: "admin-nav-settings", roles: STAFF_ROLES },
+  { to: "/admin/integrations", icon: CreditCard, label: "Integrations", testid: "admin-nav-integrations", roles: STAFF_ROLES },
 ];
 
 export const AdminLayout = () => {

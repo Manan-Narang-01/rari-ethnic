@@ -11,7 +11,9 @@ from app.repositories.campaign_repo import CampaignRepository
 from app.repositories.cart_repo import CartRepository
 from app.repositories.category_repo import CategoryRepository
 from app.repositories.exchange_request_repo import ExchangeRequestRepository
+from app.repositories.integration_repo import IntegrationRepository
 from app.repositories.order_repo import OrderRepository
+from app.repositories.otp_repo import OtpRepository
 from app.repositories.password_reset_repo import PasswordResetRepository
 from app.repositories.product_repo import ProductRepository
 from app.repositories.session_repo import SessionRepository
@@ -71,6 +73,8 @@ async def startup_tasks():
         await SiteSettingsRepository.ensure_indexes()
         await CampaignRepository.ensure_indexes()
         await ExchangeRequestRepository.ensure_indexes()
+        await IntegrationRepository.ensure_indexes()
+        await OtpRepository.ensure_indexes()
     except Exception as e:
         logger.error("Index creation failed: %s", e)
 
@@ -93,9 +97,23 @@ async def startup_tasks():
         logger.error("Product backfill failed: %s", e)
 
     try:
+        await CampaignRepository.backfill_defaults()
+    except Exception as e:
+        logger.error("Campaign backfill failed: %s", e)
+
+    try:
         await SiteSettingsRepository.ensure_defaults()
+        await SiteSettingsRepository.backfill_instagram_tiles()
     except Exception as e:
         logger.error("Site settings seed failed: %s", e)
+
+    try:
+        from app.models.integration import PROVIDER_CATALOG
+        await IntegrationRepository.ensure_defaults(PROVIDER_CATALOG)
+        await IntegrationRepository.backfill_defaults(PROVIDER_CATALOG)
+        await IntegrationRepository.ensure_provider_exists("email", "smtp", PROVIDER_CATALOG["email"]["smtp"])
+    except Exception as e:
+        logger.error("Integration catalog seed failed: %s", e)
 
 
 @app.on_event("shutdown")

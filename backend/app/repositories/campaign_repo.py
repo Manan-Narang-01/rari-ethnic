@@ -43,6 +43,32 @@ class CampaignRepository:
         await cls._collection().update_many(query, {"$set": {"is_active": False}})
 
     @classmethod
+    async def backfill_defaults(cls) -> None:
+        """Migrates the old rigid `day_colors` field into the generic
+        `attribute_groups` structure as a single 'Day Colours' group, so
+        Navratri events configured before this migration keep their data."""
+        async for doc in cls._collection().find({"day_colors": {"$exists": True}}):
+            day_colors = doc.get("day_colors") or []
+            groups = doc.get("attribute_groups") or []
+            if day_colors:
+                items = [
+                    {
+                        "order": d.get("day", 0),
+                        "title": d.get("name", ""),
+                        "subtitle": "",
+                        "description": d.get("meaning", ""),
+                        "color": d.get("hex"),
+                        "icon": None,
+                    }
+                    for d in day_colors
+                ]
+                groups = groups + [{"key": "day-colours", "title": "Day Colours", "items": items}]
+            await cls._collection().update_one(
+                {"_id": doc["_id"]},
+                {"$set": {"attribute_groups": groups}, "$unset": {"day_colors": ""}},
+            )
+
+    @classmethod
     async def ensure_indexes(cls) -> None:
         await cls._collection().create_index("id", unique=True)
         await cls._collection().create_index("is_active")

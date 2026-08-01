@@ -23,7 +23,7 @@ export const ProductDetail = () => {
     api.get(`/products/${slug}`).then((r) => {
       setProduct(r.data);
       api
-        .get("/products", { params: { category: r.data.category } })
+        .get("/products", { params: { category: r.data.categories?.[0] } })
         .then((rr) => setRelated(rr.data.filter((p) => p.slug !== slug).slice(0, 4)));
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -71,8 +71,8 @@ export const ProductDetail = () => {
         <div className="text-sm text-[#6E7B85]">
           <Link to="/" className="hover:text-[#A0684E]">Home</Link>
           <span className="mx-2">/</span>
-          <Link to={`/shop/${product.category}`} className="hover:text-[#A0684E] capitalize">
-            {product.category}
+          <Link to={`/shop/${product.categories?.[0]}`} className="hover:text-[#A0684E] capitalize">
+            {product.categories?.[0]}
           </Link>
           <span className="mx-2">/</span>
           <span className="text-[#2A2E30]">{product.name}</span>
@@ -133,6 +133,19 @@ export const ProductDetail = () => {
               )}
             </div>
             <p className="text-xs text-[#6E7B85] mt-1">Inclusive of all taxes</p>
+            {product.categories?.length > 1 && (
+              <div className="flex flex-wrap gap-1.5 mt-3" data-testid="product-categories">
+                {product.categories.map((cat) => (
+                  <Link
+                    key={cat}
+                    to={`/shop/${cat}`}
+                    className="text-[10px] uppercase tracking-widest px-2 py-1 rounded-sm bg-[#DDD5C4] text-[#6E7B85] hover:bg-[#A0684E] hover:text-[#E8E3D7] transition-colors"
+                  >
+                    {cat}
+                  </Link>
+                ))}
+              </div>
+            )}
             {product.shipping_enabled && (
               <p className="text-xs text-[#A0684E] mt-1" data-testid="product-shipping-note">
                 + {formatINR(product.shipping_charge)} shipping charge applies to this item

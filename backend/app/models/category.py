@@ -4,6 +4,8 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.models.image_crop import ImageCrop
+
 
 class Category(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -13,6 +15,7 @@ class Category(BaseModel):
     name: str
     description: str = ""
     image: Optional[str] = None
+    image_crop: Optional[ImageCrop] = None
     sort_order: int = 0
     is_active: bool = True
     show_in_navbar: bool = True
@@ -25,6 +28,7 @@ class CategoryCreate(BaseModel):
     name: str
     description: str = ""
     image: Optional[str] = None
+    image_crop: Optional[ImageCrop] = None
     sort_order: int = 0
     is_active: bool = True
     show_in_navbar: bool = True
@@ -36,6 +40,7 @@ class CategoryUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     image: Optional[str] = None
+    image_crop: Optional[ImageCrop] = None
     sort_order: Optional[int] = None
     is_active: Optional[bool] = None
     show_in_navbar: Optional[bool] = None

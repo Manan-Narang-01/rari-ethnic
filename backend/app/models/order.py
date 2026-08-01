@@ -38,8 +38,14 @@ class Order(OrderCreate):
     order_number: str = Field(default_factory=lambda: "RE" + uuid.uuid4().hex[:8].upper())
     # Set when the request carried a valid access token; null for guest checkout.
     user_id: Optional[str] = None
-    status: str = "confirmed"  # confirmed | dispatched | delivered | cancelled
+    # pending_payment | confirmed | dispatched | delivered | cancelled.
+    # Online-payment orders start at pending_payment and only move to
+    # confirmed once RazorpayService.verify_payment succeeds server-side --
+    # COD orders skip straight to confirmed (see OrderService.create).
+    status: str = "confirmed"
     delivered_at: Optional[datetime] = None
+    razorpay_order_id: Optional[str] = None
+    razorpay_payment_id: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -47,4 +53,10 @@ class OrderStatusUpdate(BaseModel):
     status: str
 
 
-VALID_ORDER_STATUSES = {"confirmed", "dispatched", "delivered", "cancelled"}
+class RazorpayVerify(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
+
+
+VALID_ORDER_STATUSES = {"pending_payment", "confirmed", "dispatched", "delivered", "cancelled"}

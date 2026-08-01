@@ -4,14 +4,37 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.models.image_crop import ImageCrop
 
-class DayColor(BaseModel):
+
+class EventAttributeItem(BaseModel):
+    """One entry within an attribute group -- deliberately generic so the
+    same shape fits a Navratri day-colour ("Day 1", orange, "Energy &
+    vitality"), a schedule entry ("Day 1 - Ghatasthapana", "Oct 12, 6 AM",
+    description), a special offer, a highlight, etc. Fields that don't apply
+    to a given use are just left blank."""
+
     model_config = ConfigDict(extra="ignore")
 
-    day: int = 0
-    name: str = ""
-    hex: str = "#A0684E"
-    meaning: str = ""
+    order: int = 0
+    title: str = ""
+    subtitle: str = ""
+    description: str = ""
+    color: Optional[str] = None
+    icon: Optional[str] = None
+
+
+class EventAttributeGroup(BaseModel):
+    """A named, admin-defined section of an event (e.g. "Day Colours",
+    "Schedule", "Special Offers") holding a list of items. Any event type can
+    define any number of these without the Campaign model itself needing to
+    change -- new event kinds are just new groups, not new code."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    key: str = ""  # auto-slugified from title if omitted; stable id for lookup
+    title: str = ""
+    items: List[EventAttributeItem] = []
 
 
 class Campaign(BaseModel):
@@ -28,12 +51,14 @@ class Campaign(BaseModel):
     hero_title: str = ""
     hero_subtitle: str = ""
     hero_image: Optional[str] = None
+    hero_image_crop: Optional[ImageCrop] = None
     hero_secondary_image: Optional[str] = None
+    hero_secondary_image_crop: Optional[ImageCrop] = None
     cta_label: str = "Shop the drop"
     order_by_note: str = ""
     shloka: str = ""
     shloka_translation: str = ""
-    day_colors: List[DayColor] = []
+    attribute_groups: List[EventAttributeGroup] = []
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -48,12 +73,14 @@ class CampaignCreate(BaseModel):
     hero_title: str = ""
     hero_subtitle: str = ""
     hero_image: Optional[str] = None
+    hero_image_crop: Optional[ImageCrop] = None
     hero_secondary_image: Optional[str] = None
+    hero_secondary_image_crop: Optional[ImageCrop] = None
     cta_label: str = "Shop the drop"
     order_by_note: str = ""
     shloka: str = ""
     shloka_translation: str = ""
-    day_colors: List[DayColor] = []
+    attribute_groups: List[EventAttributeGroup] = []
 
 
 class CampaignUpdate(BaseModel):
@@ -67,9 +94,11 @@ class CampaignUpdate(BaseModel):
     hero_title: Optional[str] = None
     hero_subtitle: Optional[str] = None
     hero_image: Optional[str] = None
+    hero_image_crop: Optional[ImageCrop] = None
     hero_secondary_image: Optional[str] = None
+    hero_secondary_image_crop: Optional[ImageCrop] = None
     cta_label: Optional[str] = None
     order_by_note: Optional[str] = None
     shloka: Optional[str] = None
     shloka_translation: Optional[str] = None
-    day_colors: Optional[List[DayColor]] = None
+    attribute_groups: Optional[List[EventAttributeGroup]] = None

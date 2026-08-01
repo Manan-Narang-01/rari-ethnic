@@ -36,13 +36,26 @@ export const AuthProvider = ({ children }) => {
     return r.data.user;
   };
 
+  // Registration no longer logs the user in directly -- the backend creates
+  // an unverified account and emails an OTP; sign-in only happens once
+  // verifyOtp() succeeds. Returns {message, email}.
   const register = async (name, email, password, phone) => {
     const r = await api.post("/auth/register", { name, email, password, phone });
+    return r.data;
+  };
+
+  const verifyOtp = async (email, code) => {
+    const r = await api.post("/auth/verify-otp", { email, code });
     localStorage.setItem(AUTH_TOKEN_KEY, r.data.access_token);
     localStorage.setItem(AUTH_REFRESH_KEY, r.data.refresh_token);
     setToken(r.data.access_token);
     setUser(r.data.user);
     return r.data.user;
+  };
+
+  const resendOtp = async (email) => {
+    const r = await api.post("/auth/resend-otp", { email });
+    return r.data.message;
   };
 
   // credential = Google Identity Services ID token. Always resolves to
@@ -93,6 +106,8 @@ export const AuthProvider = ({ children }) => {
         isAuthenticated: !!user,
         login,
         register,
+        verifyOtp,
+        resendOtp,
         loginWithGoogle,
         devLogin,
         forgotPassword,

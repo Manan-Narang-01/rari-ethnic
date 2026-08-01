@@ -48,6 +48,13 @@ class UserRepository:
         )
 
     @classmethod
+    async def mark_email_verified(cls, user_id: str) -> None:
+        await cls._collection().update_one(
+            {"id": user_id},
+            {"$set": {"email_verified": True, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        )
+
+    @classmethod
     async def update_google_profile(cls, user_id: str, *, name: str = None, picture: str = None,
                                      google_sub: str = None) -> None:
         updates = {"updated_at": datetime.now(timezone.utc).isoformat()}
@@ -58,6 +65,14 @@ class UserRepository:
         if google_sub:
             updates["google_sub"] = google_sub
         await cls._collection().update_one({"id": user_id}, {"$set": updates})
+
+    @classmethod
+    async def list_staff_emails(cls) -> list:
+        """Admin + Super Admin email addresses, for notification fan-out."""
+        docs = await cls._collection().find(
+            {"role": {"$in": ["admin", "super_admin"]}, "is_active": {"$ne": False}}, {"email": 1, "_id": 0}
+        ).to_list(100)
+        return [d["email"] for d in docs if d.get("email")]
 
     @classmethod
     async def backfill_defaults(cls) -> None:

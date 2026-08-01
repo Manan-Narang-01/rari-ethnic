@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { api, uploadImage } from "@/lib/api";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { Plus, Trash2, Loader2, ImageUp } from "lucide-react";
+import { Plus, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import { ImageCropField } from "@/components/admin/ImageCropField";
 
 const ICON_OPTIONS = ["HandHeart", "ShieldCheck", "Truck", "Sparkles"];
 
@@ -13,7 +14,15 @@ export const AdminSettings = () => {
   useEffect(() => {
     api
       .get("/admin/settings")
-      .then((r) => setForm(r.data))
+      .then((r) => {
+        const data = r.data;
+        // Older settings docs stored instagram_tiles as plain image URL
+        // strings; normalize to the {image, post_url} shape either way.
+        data.instagram_tiles = (data.instagram_tiles || []).map((t) =>
+          typeof t === "string" ? { image: t, post_url: "" } : t
+        );
+        setForm(data);
+      })
       .catch(() => toast.error("Failed to load settings"))
       .finally(() => setLoading(false));
   }, []);
@@ -27,16 +36,23 @@ export const AdminSettings = () => {
   const removeItem = (key, i) =>
     setForm((f) => ({ ...f, [key]: f[key].filter((_, idx) => idx !== i) }));
   const addItem = (key, blank) => setForm((f) => ({ ...f, [key]: [...(f[key] || []), blank] }));
+  const moveItem = (key, i, dir) =>
+    setForm((f) => {
+      const arr = [...f[key]];
+      const j = i + dir;
+      if (j < 0 || j >= arr.length) return f;
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+      return { ...f, [key]: arr };
+    });
 
   const save = async () => {
     setSaving(true);
     try {
+      const { home_categories, ...rest } = form;
       const payload = {
-        ...form,
-        free_shipping_threshold: parseInt(form.free_shipping_threshold) || 0,
-        shipping_fee: parseInt(form.shipping_fee) || 0,
+        ...rest,
         announcements: form.announcements.filter((s) => s.trim()),
-        instagram_tiles: form.instagram_tiles.filter((s) => s.trim()),
+        instagram_tiles: form.instagram_tiles.filter((t) => t.image && t.image.trim()),
       };
       const r = await api.put("/admin/settings", payload);
       setForm(r.data);
@@ -54,7 +70,7 @@ export const AdminSettings = () => {
   return (
     <div className="max-w-4xl">
       <h1 className="font-display text-4xl">Site settings</h1>
-      <p className="text-sm text-[#6E7B85] mt-1">Global content and shipping rules for the storefront.</p>
+      <p className="text-sm text-[#6E7B85] mt-1">Global content for the storefront. Shipping charges are configured per product.</p>
 
       <div className="mt-8 space-y-8">
         {/* Announcement bar */}
@@ -71,14 +87,6 @@ export const AdminSettings = () => {
             </div>
           ))}
           <AddBtn onClick={() => addItem("announcements", "")}>Add message</AddBtn>
-        </Card>
-
-        {/* Shipping */}
-        <Card title="Shipping & pricing">
-          <div className="grid md:grid-cols-2 gap-5">
-            <Field label="Free shipping over ₹" type="number" value={form.free_shipping_threshold} onChange={(v) => set("free_shipping_threshold", v)} />
-            <Field label="Shipping fee below threshold ₹" type="number" value={form.shipping_fee} onChange={(v) => set("shipping_fee", v)} />
-          </div>
         </Card>
 
         {/* Socials */}
@@ -104,29 +112,15 @@ export const AdminSettings = () => {
               <p className="text-xs text-[#6E7B85] mt-1">The last line is emphasised in gold.</p>
             </div>
             <Field label="Subtitle" textarea value={form.home_hero?.subtitle || ""} onChange={(v) => setHero("subtitle", v)} />
-            <ImageField label="Hero background image" value={form.home_hero?.image || ""} onChange={(v) => setHero("image", v)} />
+            <ImageCropField
+              label="Hero background image"
+              value={form.home_hero?.image || ""}
+              onChange={(v) => setHero("image", v)}
+              crop={form.home_hero?.image_crop}
+              onCropChange={(c) => setHero("image_crop", c)}
+              aspect={16 / 9}
+            />
           </div>
-        </Card>
-
-        {/* Categories */}
-        <Card title="Category tiles">
-          {(form.home_categories || []).map((c, i) => (
-            <div key={i} className="border border-[#8B9A9F]/25 rounded-sm p-4 mb-3">
-              <div className="grid md:grid-cols-2 gap-4">
-                <Field label="Key (url: /shop/key)" value={c.key} onChange={(v) => updateItem("home_categories", i, { key: v })} />
-                <Field label="Name" value={c.name} onChange={(v) => updateItem("home_categories", i, { name: v })} />
-                <Field label="Tag line" value={c.tag} onChange={(v) => updateItem("home_categories", i, { tag: v })} />
-                <Field label="Overlay colour (hex)" value={c.color} onChange={(v) => updateItem("home_categories", i, { color: v })} />
-              </div>
-              <div className="mt-4">
-                <ImageField label="Tile image" value={c.image} onChange={(v) => updateItem("home_categories", i, { image: v })} />
-              </div>
-              <div className="mt-3 text-right">
-                <IconBtn onClick={() => removeItem("home_categories", i)}><Trash2 size={15} /></IconBtn>
-              </div>
-            </div>
-          ))}
-          <AddBtn onClick={() => addItem("home_categories", { key: "", name: "", tag: "", image: "", color: "#A0684E" })}>Add category</AddBtn>
         </Card>
 
         {/* Why us */}
@@ -155,21 +149,57 @@ export const AdminSettings = () => {
 
         {/* Instagram tiles */}
         <Card title="Instagram tiles">
+          <p className="text-xs text-[#6E7B85] mb-3">
+            Paste the post image and, optionally, a link to that post — tiles with a link open the
+            real post instead of just your Instagram profile.
+          </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {(form.instagram_tiles || []).map((src, i) => (
-              <div key={i}>
-                <div className="relative aspect-square bg-[#DDD5C4] mb-2">
-                  {src && <img src={src} alt="" className="w-full h-full object-cover" />}
-                  <button onClick={() => removeItem("instagram_tiles", i)} className="absolute top-1 right-1 bg-[#2A2E30]/70 text-[#E8E3D7] p-1 rounded-sm">
+            {(form.instagram_tiles || []).map((t, i) => (
+              <div key={i} className="relative">
+                <div className="absolute -top-1 left-2 z-10 flex gap-1">
+                  <button
+                    onClick={() => moveItem("instagram_tiles", i, -1)}
+                    disabled={i === 0}
+                    aria-label="Move earlier"
+                    className="bg-[#2A2E30]/70 text-[#E8E3D7] p-1 rounded-sm disabled:opacity-30"
+                  >
+                    <ChevronUp size={13} />
+                  </button>
+                  <button
+                    onClick={() => moveItem("instagram_tiles", i, 1)}
+                    disabled={i === form.instagram_tiles.length - 1}
+                    aria-label="Move later"
+                    className="bg-[#2A2E30]/70 text-[#E8E3D7] p-1 rounded-sm disabled:opacity-30"
+                  >
+                    <ChevronDown size={13} />
+                  </button>
+                  <button
+                    onClick={() => removeItem("instagram_tiles", i)}
+                    aria-label="Remove tile"
+                    className="bg-[#2A2E30]/70 text-[#E8E3D7] p-1 rounded-sm"
+                  >
                     <Trash2 size={13} />
                   </button>
                 </div>
-                <UploadInline onUploaded={(url) => set("instagram_tiles", form.instagram_tiles.map((s, idx) => (idx === i ? url : s)))} />
+                <ImageCropField
+                  label={`Tile ${i + 1}`}
+                  value={t.image}
+                  onChange={(url) => updateItem("instagram_tiles", i, { image: url })}
+                  crop={t.image_crop}
+                  onCropChange={(c) => updateItem("instagram_tiles", i, { image_crop: c })}
+                  aspect={1}
+                />
+                <input
+                  value={t.post_url || ""}
+                  onChange={(e) => updateItem("instagram_tiles", i, { post_url: e.target.value })}
+                  placeholder="Instagram post link (optional)"
+                  className={`${inputCls} mt-2 text-xs`}
+                />
               </div>
             ))}
           </div>
           <div className="mt-3">
-            <AddBtn onClick={() => addItem("instagram_tiles", "")}>Add tile</AddBtn>
+            <AddBtn onClick={() => addItem("instagram_tiles", { image: "", post_url: "" })}>Add tile</AddBtn>
           </div>
         </Card>
 
@@ -221,46 +251,6 @@ const AddBtn = ({ onClick, children }) => (
   <button type="button" onClick={onClick} className="inline-flex items-center gap-1.5 text-sm text-[#A0684E] hover:text-[#8C4A3B]">
     <Plus size={15} /> {children}
   </button>
-);
-
-// Upload button that reports the resulting URL.
-export const UploadInline = ({ onUploaded }) => {
-  const [busy, setBusy] = useState(false);
-  const onFile = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setBusy(true);
-    try {
-      const url = await uploadImage(file);
-      onUploaded(url);
-    } catch {
-      toast.error("Upload failed");
-    } finally {
-      setBusy(false);
-      e.target.value = "";
-    }
-  };
-  return (
-    <label className="inline-flex items-center gap-1.5 text-xs text-[#A0684E] cursor-pointer">
-      {busy ? <Loader2 size={13} className="animate-spin" /> : <ImageUp size={13} />}
-      {busy ? "Uploading…" : "Upload"}
-      <input type="file" accept="image/*" onChange={onFile} className="hidden" />
-    </label>
-  );
-};
-
-// Image field: URL input + upload + preview.
-export const ImageField = ({ label, value, onChange }) => (
-  <div>
-    <label className={labelCls}>{label}</label>
-    <div className="flex gap-3 items-start mt-1">
-      {value && <img src={value} alt="" className="w-16 h-16 object-cover rounded-sm bg-[#DDD5C4]" />}
-      <div className="flex-1">
-        <input value={value ?? ""} onChange={(e) => onChange(e.target.value)} placeholder="Paste an image URL or upload" className={inputCls} />
-        <div className="mt-1"><UploadInline onUploaded={onChange} /></div>
-      </div>
-    </div>
-  </div>
 );
 
 export default AdminSettings;

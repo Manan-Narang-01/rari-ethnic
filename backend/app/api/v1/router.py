@@ -4,6 +4,7 @@ from app.api.v1 import (
     admin_campaigns,
     admin_categories,
     admin_exchange_requests,
+    admin_integrations,
     admin_misc,
     admin_orders,
     admin_products,
@@ -17,6 +18,7 @@ from app.api.v1 import (
     files,
     misc,
     orders,
+    payments,
     products,
     site_settings,
     uploads,
@@ -30,6 +32,7 @@ api_router.include_router(products.router)
 api_router.include_router(categories.router)
 api_router.include_router(orders.router)
 api_router.include_router(orders.customer_router)
+api_router.include_router(payments.router)
 api_router.include_router(exchange_requests.router)
 api_router.include_router(cart.router)
 api_router.include_router(misc.router)
@@ -43,6 +46,7 @@ api_router.include_router(admin_misc.router)
 api_router.include_router(admin_site_settings.router)
 api_router.include_router(admin_campaigns.router)
 api_router.include_router(admin_exchange_requests.router)
+api_router.include_router(admin_integrations.router)
 api_router.include_router(uploads.router)
 
 

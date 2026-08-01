@@ -15,6 +15,7 @@ import Checkout from "@/pages/Checkout";
 import OrderConfirmation from "@/pages/OrderConfirmation";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
+import VerifyOtp from "@/pages/VerifyOtp";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import Account from "@/pages/Account";
@@ -28,6 +29,7 @@ import AdminExchanges from "@/pages/admin/AdminExchanges";
 import AdminSettings from "@/pages/admin/AdminSettings";
 import AdminCampaigns from "@/pages/admin/AdminCampaigns";
 import AdminCampaignForm from "@/pages/admin/AdminCampaignForm";
+import AdminIntegrations from "@/pages/admin/AdminIntegrations";
 
 function App() {
   return (
@@ -50,6 +52,7 @@ function App() {
                   <Route path="/order/:orderNumber" element={<OrderConfirmation />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
+                  <Route path="/verify-otp" element={<VerifyOtp />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/account" element={<Account />} />
@@ -71,6 +74,7 @@ function App() {
                   <Route path="campaigns" element={<AdminCampaigns />} />
                   <Route path="campaigns/new" element={<AdminCampaignForm mode="create" />} />
                   <Route path="campaigns/:id/edit" element={<AdminCampaignForm mode="edit" />} />
+                  <Route path="integrations" element={<AdminIntegrations />} />
                 </Route>
               </Routes>
             </BrowserRouter>

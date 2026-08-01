@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Navigate, useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useAuth, isStaffRole } from "@/context/AuthContext";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
+import { PasswordInput } from "@/components/PasswordInput";
 import { GOOGLE_CLIENT_ID } from "@/lib/api";
 import { LOGIN } from "@/constants/testIds/auth";
 import { ShieldCheck, ChevronLeft } from "lucide-react";
@@ -35,10 +36,12 @@ export const Login = () => {
       toast.success("Signed in");
       nav(explicitNext || defaultDest(loggedInUser), { replace: true });
     } catch (err) {
-      const msg =
-        typeof err?.response?.data?.detail === "string"
-          ? err.response.data.detail
-          : "Invalid email or password";
+      const detail = err?.response?.data?.detail;
+      if (detail === "Please verify your email before signing in") {
+        nav(`/verify-otp?email=${encodeURIComponent(email.trim())}${explicitNext ? `&next=${encodeURIComponent(explicitNext)}` : ""}`);
+        return;
+      }
+      const msg = typeof detail === "string" ? detail : "Invalid email or password";
       toast.error(msg);
     } finally {
       setBusy(false);
@@ -108,9 +111,8 @@ export const Login = () => {
             </div>
             <div>
               <label className="label-caps text-[#2A2E30]">Password</label>
-              <input
+              <PasswordInput
                 required
-                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 data-testid={LOGIN.passwordInput}

@@ -13,7 +13,7 @@ class ProductRepository:
                            is_navratri: bool = None, is_new: bool = None) -> list:
         query = {"is_active": {"$ne": False}}
         if category:
-            query["category"] = category
+            query["categories"] = category  # matches any product whose categories array contains this value
         if is_bestseller is not None:
             query["is_bestseller"] = is_bestseller
         if is_navratri is not None:
@@ -65,12 +65,20 @@ class ProductRepository:
         await cls._collection().update_many({"shipping_enabled": {"$exists": False}}, {"$set": {"shipping_enabled": False}})
         await cls._collection().update_many({"shipping_charge": {"$exists": False}}, {"$set": {"shipping_charge": 0}})
 
+        # Migrate the old singular `category` field into the new `categories` list.
+        async for doc in cls._collection().find({"categories": {"$exists": False}}):
+            legacy = doc.get("category")
+            await cls._collection().update_one(
+                {"_id": doc["_id"]},
+                {"$set": {"categories": [legacy] if legacy else []}, "$unset": {"category": ""}},
+            )
+
     @classmethod
     async def ensure_indexes(cls) -> None:
         await cls._collection().create_index("slug", unique=True)
         await cls._collection().create_index("id", unique=True)
-        await cls._collection().create_index("category")
-        await cls._collection().create_index([("is_active", 1), ("category", 1), ("created_at", -1)])
+        await cls._collection().create_index("categories")
+        await cls._collection().create_index([("is_active", 1), ("categories", 1), ("created_at", -1)])
 
 
 def _coerce_created_at(doc: dict) -> dict:

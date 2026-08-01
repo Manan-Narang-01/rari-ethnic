@@ -1,21 +1,67 @@
+import logging
+
 import jwt
 from fastapi import HTTPException, status
 
 from app.config import settings
 from app.core.google_auth import verify_google_token
 from app.core.security import create_access_token, create_refresh_token, decode_token, hash_password, verify_password
+from app.repositories.otp_repo import OtpRepository
 from app.repositories.password_reset_repo import PasswordResetRepository
 from app.repositories.session_repo import SessionRepository
 from app.repositories.user_repo import UserRepository
+from app.services.email_service import EmailService
+from app.services.email_templates import otp_email, password_reset_email
+
+logger = logging.getLogger(__name__)
 
 
 class AuthService:
     @staticmethod
     async def register_customer(name: str, email: str, password: str, phone: str = None) -> dict:
+        """Does NOT create a user document -- the pending registration is held
+        in the OTP record instead, and the real account is only created once
+        verify_registration_otp succeeds. That way an unverified signup never
+        occupies the unique email slot or shows up as a real account."""
+        email = email.strip().lower()
         if await UserRepository.get_by_email(email):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="An account with this email already exists")
-        return await UserRepository.create(name=name, email=email, password_hash=hash_password(password),
-                                            role="customer", phone=phone)
+        registration = {"name": name, "email": email, "password_hash": hash_password(password), "phone": phone}
+        await AuthService._send_registration_otp(email, name, registration)
+        return {"email": email}
+
+    @staticmethod
+    async def _send_registration_otp(email: str, name: str, registration: dict) -> None:
+        code = await OtpRepository.create(email, registration)
+        # Always logged too, so the flow stays testable before SMTP is configured.
+        logger.info("OTP for %s: %s", email, code)
+        subject, html = otp_email(name, code)
+        await EmailService.send(email, subject, html)
+
+    @staticmethod
+    async def resend_registration_otp(email: str) -> None:
+        email = email.strip().lower()
+        if await UserRepository.get_by_email(email):
+            return  # already a real, verified account -- nothing pending to resend
+        pending = await OtpRepository.get_pending(email)
+        if not pending:
+            return  # no pending signup -- don't leak whether the email was ever used
+        registration = pending["registration"]
+        await AuthService._send_registration_otp(email, registration["name"], registration)
+
+    @staticmethod
+    async def verify_registration_otp(email: str, code: str) -> dict:
+        registration = await OtpRepository.verify(email, code)
+        if not registration:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired code")
+        user = await UserRepository.get_by_email(registration["email"])
+        if not user:
+            user = await UserRepository.create(
+                name=registration["name"], email=registration["email"],
+                password_hash=registration["password_hash"], role="customer",
+                phone=registration.get("phone"), email_verified=True,
+            )
+        return user
 
     @staticmethod
     async def authenticate(email: str, password: str) -> dict:
@@ -24,6 +70,10 @@ class AuthService:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
         if not user.get("is_active", True):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is disabled")
+        # Only self-registered customers go through OTP verification --
+        # admin/super_admin accounts are seeded directly and already trusted.
+        if user["role"] == "customer" and not user.get("email_verified", False):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Please verify your email before signing in")
         return user
 
     @staticmethod
@@ -65,12 +115,17 @@ class AuthService:
 
     @staticmethod
     async def request_password_reset(email: str) -> str:
-        """Returns the raw reset token so the caller can email it. Silently
-        returns None for unknown emails so account existence isn't leaked."""
+        """Sends the reset email and returns the raw token (kept for local
+        testing/logging -- see the route). Silently returns None for unknown
+        emails so account existence isn't leaked."""
         user = await UserRepository.get_by_email(email)
         if not user:
             return None
-        return await PasswordResetRepository.create(user_id=user["id"])
+        raw_token = await PasswordResetRepository.create(user_id=user["id"])
+        reset_link = f"{settings.frontend_public_url}/reset-password?token={raw_token}"
+        subject, html = password_reset_email(user["name"], reset_link)
+        await EmailService.send(user["email"], subject, html)
+        return raw_token
 
     @staticmethod
     async def reset_password(raw_token: str, new_password: str) -> None:

@@ -3,9 +3,11 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.models.image_crop import ImageCrop
+
 DEFAULT_ANNOUNCEMENTS = [
     "Handcrafted in Surat",
-    "Free shipping over ₹2,000",
+    "Free shipping",
     "Pan-India delivery in 4-7 days",
     "Cash on Delivery available",
 ]
@@ -18,16 +20,7 @@ class HomeHero(BaseModel):
     title_lines: List[str] = []
     subtitle: str = ""
     image: Optional[str] = None
-
-
-class HomeCategoryTile(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
-    key: str = ""
-    name: str = ""
-    tag: str = ""
-    image: Optional[str] = None
-    color: str = "#A0684E"
+    image_crop: Optional[ImageCrop] = None
 
 
 class WhyBadge(BaseModel):
@@ -38,6 +31,14 @@ class WhyBadge(BaseModel):
     copy: str = ""
 
 
+class InstagramTile(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    image: Optional[str] = None
+    post_url: Optional[str] = None
+    image_crop: Optional[ImageCrop] = None
+
+
 class SiteSettings(BaseModel):
     """Singleton document (fixed id 'site') holding storefront-wide dynamic content."""
 
@@ -45,24 +46,18 @@ class SiteSettings(BaseModel):
 
     id: str = "site"
     announcements: List[str] = DEFAULT_ANNOUNCEMENTS
-    free_shipping_threshold: int = 2000
-    shipping_fee: int = 99
-    whatsapp_number: str = "919316565117"
+    whatsapp_number: str = "917600565117"
     instagram_url: str = "https://www.instagram.com/rari.ethnic"
     home_hero: Optional[HomeHero] = None
-    home_categories: List[HomeCategoryTile] = []
     home_why: List[WhyBadge] = []
-    instagram_tiles: List[str] = []
+    instagram_tiles: List[InstagramTile] = []
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class SiteSettingsUpdate(BaseModel):
     announcements: Optional[List[str]] = None
-    free_shipping_threshold: Optional[int] = None
-    shipping_fee: Optional[int] = None
     whatsapp_number: Optional[str] = None
     instagram_url: Optional[str] = None
     home_hero: Optional[HomeHero] = None
-    home_categories: Optional[List[HomeCategoryTile]] = None
     home_why: Optional[List[WhyBadge]] = None
-    instagram_tiles: Optional[List[str]] = None
+    instagram_tiles: Optional[List[InstagramTile]] = None

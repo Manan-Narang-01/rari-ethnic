@@ -3,7 +3,8 @@ import { api, buildWaLink, formatINR } from "@/lib/api";
 import { MessageCircle, Phone, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
-const STATUS = ["confirmed", "dispatched", "delivered", "cancelled"];
+const STATUS = ["pending_payment", "confirmed", "dispatched", "delivered", "cancelled"];
+const statusLabel = (s) => (s === "pending_payment" ? "Awaiting payment" : s);
 
 export const AdminOrders = () => {
   const [orders, setOrders] = useState([]);
@@ -56,10 +57,10 @@ export const AdminOrders = () => {
       </div>
 
       {/* Status summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         {STATUS.map((s) => (
           <div key={s} className="bg-[#DDD5C4]/40 border border-[#8B9A9F]/20 rounded-sm p-4">
-            <div className="label-caps">{s}</div>
+            <div className="label-caps">{statusLabel(s)}</div>
             <div className="font-display text-2xl mt-1">{totals[s] || 0}</div>
           </div>
         ))}
@@ -196,7 +197,7 @@ export const AdminOrders = () => {
                               : "border-[#8B9A9F]/40 hover:border-[#2A2E30]"
                           }`}
                         >
-                          {s}
+                          {statusLabel(s)}
                         </button>
                       ))}
                     </div>
@@ -213,6 +214,7 @@ export const AdminOrders = () => {
 
 const StatusPill = ({ status }) => {
   const map = {
+    pending_payment: "bg-[#6E7B85]/20 text-[#5A6870]",
     confirmed: "bg-[#B58D3E]/25 text-[#8C6E28]",
     dispatched: "bg-[#7B6E5A]/25 text-[#5A4E3E]",
     delivered: "bg-[#7B6E5A]/40 text-[#3E4245]",
@@ -220,7 +222,7 @@ const StatusPill = ({ status }) => {
   };
   return (
     <span className={`text-[10px] uppercase tracking-widest px-2 py-1 rounded-sm ${map[status] || ""}`}>
-      {status}
+      {status === "pending_payment" ? "Awaiting payment" : status}
     </span>
   );
 };

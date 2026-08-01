@@ -6,11 +6,13 @@ import { toast } from "sonner";
 import { Package, LogOut, ShoppingBag, RefreshCw } from "lucide-react";
 
 const STATUS_STYLES = {
+  pending_payment: "bg-[#6E7B85]/15 text-[#5A6870]",
   confirmed: "bg-[#B58D3E]/15 text-[#8A6A1E]",
   dispatched: "bg-[#1E3A5F]/15 text-[#1E3A5F]",
   delivered: "bg-[#185D64]/15 text-[#185D64]",
   cancelled: "bg-[#7E1F35]/15 text-[#7E1F35]",
 };
+const statusLabel = (s) => (s === "pending_payment" ? "Awaiting payment" : s);
 
 const EXCHANGE_WINDOW_DAYS = 15;
 const EXCHANGE_REASONS = ["Size issue", "Color/design not as expected", "Damaged or defective", "Changed my mind", "Other"];
@@ -120,7 +122,7 @@ export const Account = () => {
                       </div>
                       <div className="flex items-center gap-4">
                         <span className={`text-[11px] uppercase tracking-widest px-2.5 py-1 rounded-sm ${STATUS_STYLES[o.status] || ""}`}>
-                          {o.status}
+                          {statusLabel(o.status)}
                         </span>
                         <span className="font-display text-lg text-[#A0684E]">{formatINR(o.total)}</span>
                       </div>

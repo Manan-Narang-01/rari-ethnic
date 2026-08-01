@@ -7,16 +7,13 @@ const SiteContext = createContext(null);
 const DEFAULT_SETTINGS = {
   announcements: [
     "Handcrafted in Surat",
-    "Free shipping over ₹2,000",
+    "Free shipping",
     "Pan-India delivery in 4-7 days",
     "Cash on Delivery available",
   ],
-  free_shipping_threshold: 2000,
-  shipping_fee: 99,
-  whatsapp_number: "919316565117",
+  whatsapp_number: "917600565117",
   instagram_url: "https://www.instagram.com/rari.ethnic",
   home_hero: null,
-  home_categories: [],
   home_why: [],
   instagram_tiles: [],
 };

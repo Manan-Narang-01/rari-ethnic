@@ -49,7 +49,7 @@ export const AdminProducts = () => {
   const filtered = products.filter((p) => {
     if (filter === "all") return true;
     if (filter === "hidden") return !p.is_active;
-    return p.category === filter;
+    return (p.categories || []).includes(filter);
   });
 
   return (
@@ -104,7 +104,7 @@ export const AdminProducts = () => {
           <div className="grid grid-cols-[80px_1fr_100px_110px_100px_120px] gap-3 px-4 py-3 border-b border-[#8B9A9F]/20 text-[10px] tracking-[0.2em] uppercase text-[#6E7B85] font-medium hidden md:grid">
             <div>Image</div>
             <div>Name</div>
-            <div>Category</div>
+            <div>Categories</div>
             <div>Price</div>
             <div>Stock</div>
             <div className="text-right">Actions</div>
@@ -126,7 +126,7 @@ export const AdminProducts = () => {
               <div className="min-w-0">
                 <div className="font-body text-sm text-[#2A2E30]">{p.name}</div>
                 <div className="text-xs text-[#6E7B85] mt-0.5 flex flex-wrap gap-2 md:hidden">
-                  <span>{p.category}</span> · <span>{formatINR(p.price)}</span> · <span>Stock {p.stock}</span>
+                  <span>{(p.categories || []).join(", ")}</span> · <span>{formatINR(p.price)}</span> · <span>Stock {p.stock}</span>
                 </div>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {p.is_bestseller && <span className="text-[9px] bg-[#A0684E] text-[#E8E3D7] px-1.5 py-0.5 rounded-sm">BS</span>}
@@ -136,7 +136,7 @@ export const AdminProducts = () => {
                   {!p.is_active && <span className="text-[9px] bg-[#6E7B85] text-[#E8E3D7] px-1.5 py-0.5 rounded-sm">HIDDEN</span>}
                 </div>
               </div>
-              <div className="hidden md:block text-sm text-[#6E7B85] capitalize">{p.category}</div>
+              <div className="hidden md:block text-sm text-[#6E7B85] capitalize">{(p.categories || []).join(", ")}</div>
               <div className="hidden md:block text-sm font-medium">{formatINR(p.price)}</div>
               <div className={`hidden md:block text-sm ${p.stock <= 3 ? "text-[#A0684E]" : "text-[#6E7B85]"}`}>
                 {p.stock}

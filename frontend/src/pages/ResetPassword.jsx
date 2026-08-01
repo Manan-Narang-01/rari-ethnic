@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "@/lib/api";
+import { PasswordInput } from "@/components/PasswordInput";
 import { ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 
@@ -64,9 +65,8 @@ export const ResetPassword = () => {
             </div>
             <div>
               <label className="label-caps text-[#2A2E30]">New password</label>
-              <input
+              <PasswordInput
                 required
-                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 data-testid="reset-password-new"
@@ -75,9 +75,8 @@ export const ResetPassword = () => {
             </div>
             <div>
               <label className="label-caps text-[#2A2E30]">Confirm new password</label>
-              <input
+              <PasswordInput
                 required
-                type="password"
                 value={passwordConfirm}
                 onChange={(e) => setPasswordConfirm(e.target.value)}
                 data-testid="reset-password-confirm"

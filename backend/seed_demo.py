@@ -20,35 +20,35 @@ IMG2 = "https://images.unsplash.com/photo-1583391733956-6c78276477e2?w=1200"
 
 DEMO = [
     {
-        "slug": "marigold-anarkali-suit", "name": "Marigold Anarkali Suit", "category": "suits",
+        "slug": "marigold-anarkali-suit", "name": "Marigold Anarkali Suit", "categories": ["suits"],
         "price": 2499, "compare_at_price": 3299, "stock": 6,
         "is_bestseller": True, "is_new": True, "is_navratri": True, "edit_tag": "Family Function",
         "navratri_day": "Day 5 - Yellow",
     },
     {
-        "slug": "ivory-chikankari-kurti", "name": "Ivory Chikankari Kurti", "category": "kurtis",
+        "slug": "ivory-chikankari-kurti", "name": "Ivory Chikankari Kurti", "categories": ["kurtis"],
         "price": 1299, "compare_at_price": 1799, "stock": 12,
         "is_bestseller": True, "is_new": False, "is_navratri": False,
     },
     {
-        "slug": "maroon-garba-lehenga", "name": "Maroon Mirror Garba Lehenga", "category": "lehengas",
+        "slug": "maroon-garba-lehenga", "name": "Maroon Mirror Garba Lehenga", "categories": ["lehengas"],
         "price": 4999, "compare_at_price": 6499, "stock": 3,
         "is_bestseller": True, "is_new": True, "is_navratri": True, "edit_tag": "Garba Ready",
         "navratri_day": "Day 3 - Red",
     },
     {
-        "slug": "teal-palazzo-suit", "name": "Teal Palazzo Suit Set", "category": "suits",
+        "slug": "teal-palazzo-suit", "name": "Teal Palazzo Suit Set", "categories": ["suits"],
         "price": 1899, "compare_at_price": None, "stock": 9,
         "is_bestseller": False, "is_new": True, "is_navratri": False,
     },
     {
-        "slug": "peacock-navratri-lehenga", "name": "Peacock Green Navratri Lehenga", "category": "lehengas",
+        "slug": "peacock-navratri-lehenga", "name": "Peacock Green Navratri Lehenga", "categories": ["lehengas"],
         "price": 5499, "compare_at_price": 6999, "stock": 4,
         "is_bestseller": False, "is_new": True, "is_navratri": True, "edit_tag": "Garba Ready",
         "navratri_day": "Day 9 - Peacock Green",
     },
     {
-        "slug": "cotton-daily-kurti", "name": "Everyday Cotton Kurti", "category": "kurtis",
+        "slug": "cotton-daily-kurti", "name": "Everyday Cotton Kurti", "categories": ["kurtis"],
         "price": 899, "compare_at_price": 1199, "stock": 20,
         "is_bestseller": True, "is_new": False, "is_navratri": False,
     },
