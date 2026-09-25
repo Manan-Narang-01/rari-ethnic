@@ -1,40 +1,33 @@
 import uuid
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.image_crop import ImageCrop
+# The page-builder's type catalog. `Section.config` is deliberately untyped
+# (Dict[str, Any]) rather than a discriminated union of 9 models -- each
+# type's shape is owned by its admin editor / renderer pair on the frontend
+# (frontend/src/components/admin/events/*, frontend/src/components/events/*),
+# matching this codebase's existing convention for other free-form JSON blobs
+# (e.g. Integration.credentials). The backend only validates that `type` is
+# one of these and that sections stay a well-formed list.
+SECTION_TYPES = {
+    "hero", "countdown", "shloka", "product_grid", "attribute_grid",
+    "urgency_banner", "rich_text", "image_gallery", "faq_accordion",
+}
 
 
-class EventAttributeItem(BaseModel):
-    """One entry within an attribute group -- deliberately generic so the
-    same shape fits a Navratri day-colour ("Day 1", orange, "Energy &
-    vitality"), a schedule entry ("Day 1 - Ghatasthapana", "Oct 12, 6 AM",
-    description), a special offer, a highlight, etc. Fields that don't apply
-    to a given use are just left blank."""
-
-    model_config = ConfigDict(extra="ignore")
-
-    order: int = 0
-    title: str = ""
-    subtitle: str = ""
-    description: str = ""
-    color: Optional[str] = None
-    icon: Optional[str] = None
-
-
-class EventAttributeGroup(BaseModel):
-    """A named, admin-defined section of an event (e.g. "Day Colours",
-    "Schedule", "Special Offers") holding a list of items. Any event type can
-    define any number of these without the Campaign model itself needing to
-    change -- new event kinds are just new groups, not new code."""
+class Section(BaseModel):
+    """One block on the event page. `id` is client-generated (a uuid) so drag
+    reorders and edits can reference a section stably without depending on
+    its position in the list."""
 
     model_config = ConfigDict(extra="ignore")
 
-    key: str = ""  # auto-slugified from title if omitted; stable id for lookup
-    title: str = ""
-    items: List[EventAttributeItem] = []
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    type: str
+    enabled: bool = True
+    config: Dict[str, Any] = {}
 
 
 class Campaign(BaseModel):
@@ -45,20 +38,11 @@ class Campaign(BaseModel):
     slug: str = "navratri"
     is_active: bool = False
     theme: str = "festive"  # festive | default
+    # Page-level, not part of `sections` -- Home.jsx's own countdown badge
+    # reads these directly, independent of the Event page's own content.
     countdown_target: Optional[datetime] = None
     countdown_label: str = "Navratri arrives in"
-    hero_eyebrow: str = ""
-    hero_title: str = ""
-    hero_subtitle: str = ""
-    hero_image: Optional[str] = None
-    hero_image_crop: Optional[ImageCrop] = None
-    hero_secondary_image: Optional[str] = None
-    hero_secondary_image_crop: Optional[ImageCrop] = None
-    cta_label: str = "Shop the drop"
-    order_by_note: str = ""
-    shloka: str = ""
-    shloka_translation: str = ""
-    attribute_groups: List[EventAttributeGroup] = []
+    sections: List[Section] = []
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -69,18 +53,7 @@ class CampaignCreate(BaseModel):
     theme: str = "festive"
     countdown_target: Optional[datetime] = None
     countdown_label: str = "Navratri arrives in"
-    hero_eyebrow: str = ""
-    hero_title: str = ""
-    hero_subtitle: str = ""
-    hero_image: Optional[str] = None
-    hero_image_crop: Optional[ImageCrop] = None
-    hero_secondary_image: Optional[str] = None
-    hero_secondary_image_crop: Optional[ImageCrop] = None
-    cta_label: str = "Shop the drop"
-    order_by_note: str = ""
-    shloka: str = ""
-    shloka_translation: str = ""
-    attribute_groups: List[EventAttributeGroup] = []
+    sections: List[Section] = []
 
 
 class CampaignUpdate(BaseModel):
@@ -90,15 +63,18 @@ class CampaignUpdate(BaseModel):
     theme: Optional[str] = None
     countdown_target: Optional[datetime] = None
     countdown_label: Optional[str] = None
-    hero_eyebrow: Optional[str] = None
-    hero_title: Optional[str] = None
-    hero_subtitle: Optional[str] = None
-    hero_image: Optional[str] = None
-    hero_image_crop: Optional[ImageCrop] = None
-    hero_secondary_image: Optional[str] = None
-    hero_secondary_image_crop: Optional[ImageCrop] = None
-    cta_label: Optional[str] = None
-    order_by_note: Optional[str] = None
-    shloka: Optional[str] = None
-    shloka_translation: Optional[str] = None
-    attribute_groups: Optional[List[EventAttributeGroup]] = None
+    sections: Optional[List[Section]] = None
+
+
+class CampaignAuditLog(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    campaign_id: str
+    campaign_name: str
+    actor_id: str
+    actor_name: str
+    actor_email: str
+    action: str  # created | updated | deleted
+    changes: Dict[str, Any] = {}
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

@@ -1,81 +1,105 @@
-from datetime import datetime
+from sqlalchemy import delete, select, update
 
-from app.database import get_database
+from app.database import get_session
+from app.db.base import coerce_datetimes, row_to_dict
+from app.db.models import CampaignAuditLogRow, CampaignRow
+
+_DATETIME_FIELDS = {"created_at", "countdown_target"}
 
 
 class CampaignRepository:
-    @staticmethod
-    def _collection():
-        return get_database().campaigns
-
     @classmethod
     async def list_all(cls) -> list:
-        docs = await cls._collection().find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
-        return [_coerce_dates(d) for d in docs]
+        async with get_session() as session:
+            rows = (await session.scalars(select(CampaignRow).order_by(CampaignRow.created_at.desc()).limit(500))).all()
+            return [row_to_dict(r) for r in rows]
 
     @classmethod
     async def get_by_id(cls, campaign_id: str) -> dict:
-        doc = await cls._collection().find_one({"id": campaign_id}, {"_id": 0})
-        return _coerce_dates(doc) if doc else None
+        async with get_session() as session:
+            row = await session.get(CampaignRow, campaign_id)
+            return row_to_dict(row)
 
     @classmethod
     async def get_active(cls) -> dict:
-        doc = await cls._collection().find_one({"is_active": True}, {"_id": 0})
-        return _coerce_dates(doc) if doc else None
+        async with get_session() as session:
+            row = await session.scalar(select(CampaignRow).where(CampaignRow.is_active.is_(True)))
+            return row_to_dict(row)
 
     @classmethod
-    async def insert(cls, doc: dict) -> None:
-        await cls._collection().insert_one(doc)
+    async def insert(cls, doc: dict, *, deactivate_others: bool = False) -> None:
+        # When the new campaign is created active, the deactivate-others step
+        # runs in the SAME transaction/commit as the insert (not a separate
+        # deactivate_all() call) so two concurrent activations can't interleave
+        # and leave more than one campaign active -- the deactivate statement's
+        # row locks (held until this commit) serialize against any other
+        # in-flight activation touching the same rows.
+        row = CampaignRow(**coerce_datetimes(doc, _DATETIME_FIELDS))
+        async with get_session() as session:
+            if deactivate_others:
+                await session.execute(update(CampaignRow).values(is_active=False))
+            session.add(row)
+            await session.commit()
 
     @classmethod
-    async def update(cls, campaign_id: str, updates: dict) -> bool:
-        r = await cls._collection().update_one({"id": campaign_id}, {"$set": updates})
-        return r.matched_count > 0
+    async def update(cls, campaign_id: str, updates: dict, *, deactivate_others: bool = False) -> bool:
+        async with get_session() as session:
+            if deactivate_others:
+                await session.execute(update(CampaignRow).where(CampaignRow.id != campaign_id).values(is_active=False))
+            result = await session.execute(
+                update(CampaignRow).where(CampaignRow.id == campaign_id).values(**coerce_datetimes(updates, _DATETIME_FIELDS))
+            )
+            await session.commit()
+            return result.rowcount > 0
 
     @classmethod
     async def delete(cls, campaign_id: str) -> bool:
-        r = await cls._collection().delete_one({"id": campaign_id})
-        return r.deleted_count > 0
-
-    @classmethod
-    async def deactivate_all(cls, exclude_id: str = None) -> None:
-        query = {"id": {"$ne": exclude_id}} if exclude_id else {}
-        await cls._collection().update_many(query, {"$set": {"is_active": False}})
+        async with get_session() as session:
+            result = await session.execute(delete(CampaignRow).where(CampaignRow.id == campaign_id))
+            await session.commit()
+            return result.rowcount > 0
 
     @classmethod
     async def backfill_defaults(cls) -> None:
-        """Migrates the old rigid `day_colors` field into the generic
-        `attribute_groups` structure as a single 'Day Colours' group, so
-        Navratri events configured before this migration keep their data."""
-        async for doc in cls._collection().find({"day_colors": {"$exists": True}}):
-            day_colors = doc.get("day_colors") or []
-            groups = doc.get("attribute_groups") or []
-            if day_colors:
-                items = [
-                    {
-                        "order": d.get("day", 0),
-                        "title": d.get("name", ""),
-                        "subtitle": "",
-                        "description": d.get("meaning", ""),
-                        "color": d.get("hex"),
-                        "icon": None,
-                    }
-                    for d in day_colors
-                ]
-                groups = groups + [{"key": "day-colours", "title": "Day Colours", "items": items}]
-            await cls._collection().update_one(
-                {"_id": doc["_id"]},
-                {"$set": {"attribute_groups": groups}, "$unset": {"day_colors": ""}},
-            )
+        """No-op on Postgres -- this only ever migrated the old rigid
+        `day_colors` field into `attribute_groups` for documents from before
+        that field existed. `day_colors` isn't even a column in the Postgres
+        schema; a Mongo->Postgres data migration handles that shape directly
+        (see migrate_mongo_to_postgres.py) instead of via this backfill."""
+        pass
 
     @classmethod
     async def ensure_indexes(cls) -> None:
-        await cls._collection().create_index("id", unique=True)
-        await cls._collection().create_index("is_active")
+        pass
 
 
-def _coerce_dates(doc: dict) -> dict:
-    for field in ("created_at", "countdown_target"):
-        if isinstance(doc.get(field), str):
-            doc[field] = datetime.fromisoformat(doc[field])
-    return doc
+class CampaignAuditLogRepository:
+    _DATETIME_FIELDS = {"created_at"}
+
+    @classmethod
+    async def insert(cls, doc: dict) -> None:
+        row = CampaignAuditLogRow(**coerce_datetimes(doc, cls._DATETIME_FIELDS))
+        async with get_session() as session:
+            session.add(row)
+            await session.commit()
+
+    @classmethod
+    async def list_for_campaign(cls, campaign_id: str) -> list:
+        async with get_session() as session:
+            rows = (await session.scalars(
+                select(CampaignAuditLogRow).where(CampaignAuditLogRow.campaign_id == campaign_id)
+                .order_by(CampaignAuditLogRow.created_at.desc()).limit(500)
+            )).all()
+            return [row_to_dict(r) for r in rows]
+
+    @classmethod
+    async def list_all(cls) -> list:
+        async with get_session() as session:
+            rows = (await session.scalars(
+                select(CampaignAuditLogRow).order_by(CampaignAuditLogRow.created_at.desc()).limit(1000)
+            )).all()
+            return [row_to_dict(r) for r in rows]
+
+    @classmethod
+    async def ensure_indexes(cls) -> None:
+        pass

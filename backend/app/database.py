@@ -1,25 +1,26 @@
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import settings
 
-_client: AsyncIOMotorClient = None
-_db: AsyncIOMotorDatabase = None
+_engine: AsyncEngine = None
+_session_factory: async_sessionmaker = None
 
 
 def connect() -> None:
-    global _client, _db
-    _client = AsyncIOMotorClient(settings.mongo_url)
-    _db = _client[settings.db_name]
+    global _engine, _session_factory
+    _engine = create_async_engine(settings.database_url, pool_pre_ping=True)
+    _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
 
 
-def close() -> None:
-    global _client
-    if _client is not None:
-        _client.close()
-        _client = None
+async def close() -> None:
+    global _engine, _session_factory
+    if _engine is not None:
+        await _engine.dispose()
+        _engine = None
+        _session_factory = None
 
 
-def get_database() -> AsyncIOMotorDatabase:
-    if _db is None:
+def get_session() -> AsyncSession:
+    if _session_factory is None:
         connect()
-    return _db
+    return _session_factory()

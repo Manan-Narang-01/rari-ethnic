@@ -6,6 +6,17 @@ import { toast } from "sonner";
 const STATUS = ["pending_payment", "confirmed", "dispatched", "delivered", "cancelled"];
 const statusLabel = (s) => (s === "pending_payment" ? "Awaiting payment" : s);
 
+// Mirrors the backend's ORDER_STATUS_TRANSITIONS (app/models/order.py) --
+// delivered/cancelled are terminal, and every other move is forward-only, so
+// invalid buttons are disabled here instead of only failing after a click.
+const TRANSITIONS = {
+  pending_payment: ["confirmed", "cancelled"],
+  confirmed: ["dispatched", "cancelled"],
+  dispatched: ["delivered", "cancelled"],
+  delivered: [],
+  cancelled: [],
+};
+
 export const AdminOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,12 +39,13 @@ export const AdminOrders = () => {
   }, []);
 
   const setStatus = async (orderNumber, status) => {
+    if (status === "cancelled" && !window.confirm(`Cancel order ${orderNumber}? This can't be undone.`)) return;
     try {
       await api.patch(`/admin/orders/${orderNumber}`, { status });
       toast.success(`Marked ${status}`);
       load();
-    } catch {
-      toast.error("Update failed");
+    } catch (e) {
+      toast.error(typeof e.response?.data?.detail === "string" ? e.response.data.detail : "Update failed");
     }
   };
 
@@ -185,21 +197,28 @@ export const AdminOrders = () => {
                   <div>
                     <div className="label-caps mb-2">Update status</div>
                     <div className="flex flex-wrap gap-2">
-                      {STATUS.map((s) => (
-                        <button
-                          key={s}
-                          onClick={() => setStatus(o.order_number, s)}
-                          disabled={o.status === s}
-                          data-testid={`admin-order-status-${o.order_number}-${s}`}
-                          className={`px-3 py-1.5 text-xs uppercase tracking-widest rounded-sm border ${
-                            o.status === s
-                              ? "bg-[#2A2E30] text-[#E8E3D7] border-[#2A2E30] opacity-60"
-                              : "border-[#8B9A9F]/40 hover:border-[#2A2E30]"
-                          }`}
-                        >
-                          {statusLabel(s)}
-                        </button>
-                      ))}
+                      {STATUS.map((s) => {
+                        const isCurrent = o.status === s;
+                        const isAllowed = isCurrent || (TRANSITIONS[o.status] || []).includes(s);
+                        return (
+                          <button
+                            key={s}
+                            onClick={() => setStatus(o.order_number, s)}
+                            disabled={!isAllowed}
+                            title={!isAllowed ? `Can't move from "${statusLabel(o.status)}" to "${statusLabel(s)}"` : undefined}
+                            data-testid={`admin-order-status-${o.order_number}-${s}`}
+                            className={`px-3 py-1.5 text-xs uppercase tracking-widest rounded-sm border ${
+                              isCurrent
+                                ? "bg-[#2A2E30] text-[#E8E3D7] border-[#2A2E30] opacity-60"
+                                : isAllowed
+                                ? "border-[#8B9A9F]/40 hover:border-[#2A2E30]"
+                                : "border-[#8B9A9F]/15 text-[#6E7B85]/40 cursor-not-allowed"
+                            }`}
+                          >
+                            {statusLabel(s)}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

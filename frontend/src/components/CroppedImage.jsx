@@ -5,9 +5,15 @@
 // the site's default behavior. Must be placed inside a `relative
 // overflow-hidden` container that defines the visible tile's size/aspect --
 // same contract as a plain <img class="w-full h-full object-cover">.
+const FALLBACK_SRC = "/brand/logo-transparent.png";
+const onImgError = (e) => {
+  if (e.currentTarget.src.endsWith(FALLBACK_SRC)) return; // avoid a loop if the fallback itself 404s
+  e.currentTarget.src = FALLBACK_SRC;
+};
+
 export const CroppedImage = ({ src, crop, alt = "", className = "" }) => {
   if (!crop) {
-    return <img src={src} alt={alt} className={`w-full h-full object-cover ${className}`} />;
+    return <img src={src} alt={alt} onError={onImgError} className={`w-full h-full object-cover ${className}`} />;
   }
 
   const scaleX = 100 / crop.width;
@@ -17,6 +23,7 @@ export const CroppedImage = ({ src, crop, alt = "", className = "" }) => {
     <img
       src={src}
       alt={alt}
+      onError={onImgError}
       className={`absolute ${className}`}
       style={{
         width: `${scaleX * 100}%`,

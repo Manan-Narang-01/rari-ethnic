@@ -27,12 +27,20 @@ export const AdminExchanges = () => {
   }, []);
 
   const setStatus = async (req, status) => {
+    // rejected/completed are terminal -- no path back to request another
+    // exchange on the same order after either, so confirm before committing.
+    if (
+      (status === "rejected" || status === "completed") &&
+      !window.confirm(`Mark this exchange request as ${status}? This can't be changed later.`)
+    ) {
+      return;
+    }
     try {
       await api.put(`/admin/exchange-requests/${req.id}`, { status, admin_note: notes[req.id] ?? req.admin_note });
       toast.success(`Marked ${status}`);
       load();
-    } catch {
-      toast.error("Update failed");
+    } catch (e) {
+      toast.error(typeof e.response?.data?.detail === "string" ? e.response.data.detail : "Update failed");
     }
   };
 

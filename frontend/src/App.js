@@ -1,5 +1,6 @@
 import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
 import { SiteProvider } from "@/context/SiteContext";
 import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
@@ -19,6 +20,7 @@ import VerifyOtp from "@/pages/VerifyOtp";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import Account from "@/pages/Account";
+import NotFound from "@/pages/NotFound";
 import AdminLayout from "@/pages/admin/AdminLayout";
 import AdminProducts from "@/pages/admin/AdminProducts";
 import AdminProductForm from "@/pages/admin/AdminProductForm";
@@ -29,11 +31,13 @@ import AdminExchanges from "@/pages/admin/AdminExchanges";
 import AdminSettings from "@/pages/admin/AdminSettings";
 import AdminCampaigns from "@/pages/admin/AdminCampaigns";
 import AdminCampaignForm from "@/pages/admin/AdminCampaignForm";
+import AdminCampaignLogs from "@/pages/admin/AdminCampaignLogs";
 import AdminIntegrations from "@/pages/admin/AdminIntegrations";
 
 function App() {
   return (
     <div className="App">
+      <HelmetProvider>
       <AuthProvider>
         <SiteProvider>
           <CartProvider>
@@ -56,6 +60,7 @@ function App() {
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/account" element={<Account />} />
+                  <Route path="*" element={<NotFound />} />
                 </Route>
 
                 {/* Admin — single login page lives at /login; this is a soft
@@ -73,14 +78,17 @@ function App() {
                   <Route path="settings" element={<AdminSettings />} />
                   <Route path="campaigns" element={<AdminCampaigns />} />
                   <Route path="campaigns/new" element={<AdminCampaignForm mode="create" />} />
+                  <Route path="campaigns/logs" element={<AdminCampaignLogs />} />
                   <Route path="campaigns/:id/edit" element={<AdminCampaignForm mode="edit" />} />
                   <Route path="integrations" element={<AdminIntegrations />} />
+                  <Route path="*" element={<Navigate to="/admin" replace />} />
                 </Route>
               </Routes>
             </BrowserRouter>
           </CartProvider>
         </SiteProvider>
       </AuthProvider>
+      </HelmetProvider>
     </div>
   );
 }

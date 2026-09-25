@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Navigate, useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { VERIFY_OTP } from "@/constants/testIds/auth";
+import { Seo } from "@/components/Seo";
 import { ChevronLeft, MailCheck } from "lucide-react";
 import { toast } from "sonner";
 
@@ -52,6 +53,7 @@ export const VerifyOtp = () => {
 
   return (
     <div className="bg-[#E8E3D7] min-h-[70vh] flex items-center justify-center px-4 py-16">
+      <Seo title="Verify Your Email" noindex />
       <div className="w-full max-w-md">
         <Link to="/register" className="text-sm text-[#6E7B85] hover:text-[#A0684E] inline-flex items-center gap-1">
           <ChevronLeft size={14} /> Back

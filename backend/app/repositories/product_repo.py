@@ -1,87 +1,102 @@
-from datetime import datetime
+from sqlalchemy import delete, or_, select, update
 
-from app.database import get_database
+from app.database import get_session
+from app.db.base import coerce_datetimes, row_to_dict
+from app.db.models import ProductRow
+
+_DATETIME_FIELDS = {"created_at"}
 
 
 class ProductRepository:
-    @staticmethod
-    def _collection():
-        return get_database().products
-
     @classmethod
     async def list_public(cls, *, category: str = None, is_bestseller: bool = None,
-                           is_navratri: bool = None, is_new: bool = None) -> list:
-        query = {"is_active": {"$ne": False}}
+                           is_navratri: bool = None, is_new: bool = None, q: str = None,
+                           skip: int = 0, limit: int = 500) -> list:
+        stmt = select(ProductRow).where(ProductRow.is_active.is_(True))
         if category:
-            query["categories"] = category  # matches any product whose categories array contains this value
+            stmt = stmt.where(ProductRow.categories.contains([category]))  # array-contains, matches Mongo's multikey semantics
         if is_bestseller is not None:
-            query["is_bestseller"] = is_bestseller
+            stmt = stmt.where(ProductRow.is_bestseller.is_(is_bestseller))
         if is_navratri is not None:
-            query["is_navratri"] = is_navratri
+            stmt = stmt.where(ProductRow.is_navratri.is_(is_navratri))
         if is_new is not None:
-            query["is_new"] = is_new
-        docs = await cls._collection().find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
-        return [_coerce_created_at(d) for d in docs]
+            stmt = stmt.where(ProductRow.is_new.is_(is_new))
+        if q:
+            pattern = f"%{q}%"
+            stmt = stmt.where(or_(ProductRow.name.ilike(pattern), ProductRow.fabric.ilike(pattern), ProductRow.description.ilike(pattern)))
+        stmt = stmt.order_by(ProductRow.created_at.desc()).offset(skip).limit(limit)
+        async with get_session() as session:
+            rows = (await session.scalars(stmt)).all()
+            return [row_to_dict(r) for r in rows]
 
     @classmethod
-    async def list_all(cls) -> list:
-        docs = await cls._collection().find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
-        return [_coerce_created_at(d) for d in docs]
+    async def list_all(cls, *, category: str = None, is_active: bool = None, q: str = None,
+                        skip: int = 0, limit: int = 1000) -> list:
+        stmt = select(ProductRow)
+        if category:
+            stmt = stmt.where(ProductRow.categories.contains([category]))
+        if is_active is not None:
+            stmt = stmt.where(ProductRow.is_active.is_(is_active))
+        if q:
+            pattern = f"%{q}%"
+            stmt = stmt.where(or_(ProductRow.name.ilike(pattern), ProductRow.fabric.ilike(pattern),
+                                   ProductRow.description.ilike(pattern), ProductRow.slug.ilike(pattern)))
+        stmt = stmt.order_by(ProductRow.created_at.desc()).offset(skip).limit(limit)
+        async with get_session() as session:
+            rows = (await session.scalars(stmt)).all()
+            return [row_to_dict(r) for r in rows]
 
     @classmethod
     async def get_by_slug(cls, slug: str) -> dict:
-        doc = await cls._collection().find_one({"slug": slug}, {"_id": 0})
-        return _coerce_created_at(doc) if doc else None
+        async with get_session() as session:
+            row = await session.scalar(select(ProductRow).where(ProductRow.slug == slug))
+            return row_to_dict(row)
 
     @classmethod
     async def get_by_id(cls, product_id: str) -> dict:
-        doc = await cls._collection().find_one({"id": product_id}, {"_id": 0})
-        return _coerce_created_at(doc) if doc else None
+        async with get_session() as session:
+            row = await session.get(ProductRow, product_id)
+            return row_to_dict(row)
 
     @classmethod
     async def slug_exists(cls, slug: str, *, exclude_id: str = None) -> bool:
-        query = {"slug": slug}
+        stmt = select(ProductRow.id).where(ProductRow.slug == slug)
         if exclude_id:
-            query["id"] = {"$ne": exclude_id}
-        return await cls._collection().find_one(query) is not None
+            stmt = stmt.where(ProductRow.id != exclude_id)
+        async with get_session() as session:
+            return (await session.scalar(stmt)) is not None
 
     @classmethod
     async def insert(cls, doc: dict) -> None:
-        await cls._collection().insert_one(doc)
+        row = ProductRow(**coerce_datetimes(doc, _DATETIME_FIELDS))
+        async with get_session() as session:
+            session.add(row)
+            await session.commit()
 
     @classmethod
     async def update(cls, product_id: str, updates: dict) -> bool:
-        r = await cls._collection().update_one({"id": product_id}, {"$set": updates})
-        return r.matched_count > 0
+        async with get_session() as session:
+            result = await session.execute(
+                update(ProductRow).where(ProductRow.id == product_id).values(**coerce_datetimes(updates, _DATETIME_FIELDS))
+            )
+            await session.commit()
+            return result.rowcount > 0
 
     @classmethod
     async def delete(cls, product_id: str) -> bool:
-        r = await cls._collection().delete_one({"id": product_id})
-        return r.deleted_count > 0
+        async with get_session() as session:
+            result = await session.execute(delete(ProductRow).where(ProductRow.id == product_id))
+            await session.commit()
+            return result.rowcount > 0
 
     @classmethod
     async def backfill_defaults(cls) -> None:
-        await cls._collection().update_many({"is_active": {"$exists": False}}, {"$set": {"is_active": True}})
-        await cls._collection().update_many({"shipping_enabled": {"$exists": False}}, {"$set": {"shipping_enabled": False}})
-        await cls._collection().update_many({"shipping_charge": {"$exists": False}}, {"$set": {"shipping_charge": 0}})
-
-        # Migrate the old singular `category` field into the new `categories` list.
-        async for doc in cls._collection().find({"categories": {"$exists": False}}):
-            legacy = doc.get("category")
-            await cls._collection().update_one(
-                {"_id": doc["_id"]},
-                {"$set": {"categories": [legacy] if legacy else []}, "$unset": {"category": ""}},
-            )
+        """No-op on Postgres -- this only ever migrated documents from before
+        these fields (or the `categories` list, replacing the old singular
+        `category` string) existed in Mongo's schemaless documents. The
+        Postgres schema is already in the target shape from day one."""
+        pass
 
     @classmethod
     async def ensure_indexes(cls) -> None:
-        await cls._collection().create_index("slug", unique=True)
-        await cls._collection().create_index("id", unique=True)
-        await cls._collection().create_index("categories")
-        await cls._collection().create_index([("is_active", 1), ("categories", 1), ("created_at", -1)])
-
-
-def _coerce_created_at(doc: dict) -> dict:
-    if isinstance(doc.get("created_at"), str):
-        doc["created_at"] = datetime.fromisoformat(doc["created_at"])
-    return doc
+        pass

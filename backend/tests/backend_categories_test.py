@@ -1,6 +1,6 @@
 """Backend API tests for the Categories + Cart schema addition. Follows the
 same live-HTTP convention as backend_auth_test.py -- point REACT_APP_BACKEND_URL
-(or frontend/.env) at a running instance with a reachable MongoDB before running."""
+(or frontend/.env) at a running instance with a reachable Postgres database before running."""
 import os
 import uuid
 from pathlib import Path

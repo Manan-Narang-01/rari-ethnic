@@ -21,3 +21,9 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Generated at deploy time by scripts/generate-sitemap.js (`yarn sitemap`),
+# pointed at the real production SITE_URL/backend -- a locally-generated copy
+# always has a placeholder or a stale/local catalog, so it should never be
+# committed. See README for the deploy step.
+/public/sitemap.xml

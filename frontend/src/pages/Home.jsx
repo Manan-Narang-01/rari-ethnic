@@ -7,6 +7,7 @@ import { CountdownTimer } from "@/components/CountdownTimer";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import { images } from "@/assets/images";
 import { CroppedImage } from "@/components/CroppedImage";
+import { Seo } from "@/components/Seo";
 import { ArrowRight, Sparkles, Truck, ShieldCheck, HandHeart, Instagram } from "lucide-react";
 
 // Maps admin-configured icon names to lucide components.
@@ -121,6 +122,11 @@ export const Home = () => {
 
   return (
     <div className="bg-[#E8E3D7]">
+      <Seo
+        title="Indian Ethnic Wear — Kurtis, Suits & Lehengas"
+        description="Handcrafted Indian ethnic wear from Surat — kurtis, suits and lehengas for festive days and quiet ones. Cash on Delivery, Pan-India shipping."
+        image={heroImage}
+      />
       {/* HERO */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0">

@@ -2,7 +2,19 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "@/lib/api";
 import { ProductCard } from "@/components/ProductCard";
-import { SlidersHorizontal, ChevronDown, X } from "lucide-react";
+import { Seo } from "@/components/Seo";
+import { SlidersHorizontal, ChevronDown, X, Grid2x2, Grid3x3, LayoutGrid, Loader2 } from "lucide-react";
+
+// Products-per-row options for the density toggle. Class strings are written
+// out in full (not built with template literals) so Tailwind's static scan
+// picks them all up regardless of which one is active at runtime.
+const GRID_OPTIONS = [
+  { columns: 2, icon: Grid2x2, label: "2 per row", cls: "grid-cols-2" },
+  { columns: 3, icon: Grid3x3, label: "3 per row", cls: "grid-cols-2 lg:grid-cols-3" },
+  { columns: 4, icon: LayoutGrid, label: "4 per row", cls: "grid-cols-2 lg:grid-cols-4" },
+];
+const ROWS_PER_PAGE = 3;
+const GRID_COLUMNS_KEY = "rari_grid_columns";
 
 const CATEGORY_META = {
   kurtis: { title: "Kurtis", sub: "Everyday to festive · ₹1,299 to ₹2,499" },
@@ -33,22 +45,72 @@ export const Category = () => {
   const { category } = useParams();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [columns, setColumns] = useState(() => {
+    const saved = Number(localStorage.getItem(GRID_COLUMNS_KEY));
+    return GRID_OPTIONS.some((o) => o.columns === saved) ? saved : 3;
+  });
   const [priceBucket, setPriceBucket] = useState(null);
   const [selectedSize, setSelectedSize] = useState(null);
   const [selectedFabric, setSelectedFabric] = useState(null);
   const [selectedOccasion, setSelectedOccasion] = useState(null);
   const [sortBy, setSortBy] = useState("featured");
   const [filterOpen, setFilterOpen] = useState(false);
+  const [categoryData, setCategoryData] = useState(null);
+
+  const pageSize = columns * ROWS_PER_PAGE;
+  const gridCls = GRID_OPTIONS.find((o) => o.columns === columns)?.cls || GRID_OPTIONS[1].cls;
+
+  const setColumnsAndPersist = (n) => {
+    setColumns(n);
+    try {
+      localStorage.setItem(GRID_COLUMNS_KEY, String(n));
+    } catch {
+      // Private-window/blocked storage -- the toggle still works for this
+      // session, it just won't be remembered next visit.
+    }
+  };
 
   const meta = CATEGORY_META[category] || { title: category, sub: "" };
+  // Real category name/description (SEO copy only -- the visible header above
+  // still uses the CATEGORY_META fallback so existing page content is
+  // unchanged) covers every category, including ones without a
+  // CATEGORY_META entry, e.g. any admin-added beyond kurtis/suits/lehengas.
+  const seoTitle = categoryData?.name || meta.title;
+  const seoDescription = categoryData?.description || `Shop ${seoTitle} online at Rari Ethnic — ${meta.sub || "handcrafted Indian ethnic wear from Surat"}.`;
 
   useEffect(() => {
-    setLoading(true);
-    api
-      .get("/products", { params: { category } })
-      .then((r) => setItems(r.data))
-      .finally(() => setLoading(false));
+    api.get("/categories").then((r) => setCategoryData(r.data.find((c) => c.key === category) || null)).catch(() => {});
   }, [category]);
+
+  // Column density changes the server page size (so "Load more" always adds
+  // a full set of complete rows for whatever density is active) -- reset and
+  // refetch from the start whenever the category or density changes, rather
+  // than trying to reconcile a partially-loaded list against a new page size.
+  useEffect(() => {
+    setLoading(true);
+    setHasMore(false);
+    api
+      .get("/products", { params: { category, limit: pageSize } })
+      .then((r) => {
+        setItems(r.data);
+        setHasMore(r.headers["x-has-more"] === "true");
+      })
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category, pageSize]);
+
+  const loadMore = () => {
+    setLoadingMore(true);
+    api
+      .get("/products", { params: { category, skip: items.length, limit: pageSize } })
+      .then((r) => {
+        setItems((prev) => [...prev, ...r.data]);
+        setHasMore(r.headers["x-has-more"] === "true");
+      })
+      .finally(() => setLoadingMore(false));
+  };
 
   const fabrics = useMemo(() => {
     const counts = {};
@@ -91,6 +153,19 @@ export const Category = () => {
 
   return (
     <div className="bg-[#E8E3D7]">
+      <Seo
+        title={`${seoTitle} Online`}
+        description={seoDescription}
+        image={categoryData?.image}
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Home", item: `${window.location.origin}/` },
+            { "@type": "ListItem", position: 2, name: seoTitle, item: `${window.location.origin}/shop/${category}` },
+          ],
+        }}
+      />
       {/* Header */}
       <div className="border-b border-[#2A2E30]/8 bg-[#DDD5C4]/40">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10 py-10 md:py-14 fade-up">
@@ -139,23 +214,42 @@ export const Category = () => {
               <div className="hidden lg:block text-sm text-[#6E7B85]">
                 {filtered.length} piece{filtered.length !== 1 ? "s" : ""}
               </div>
-              <select
-                data-testid="sort-select"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="text-sm bg-transparent border border-[#2A2E30]/15 rounded-sm px-3 py-2 focus:outline-none focus:border-[#A0684E]"
-              >
-                <option value="featured">Featured</option>
-                <option value="new">Newest</option>
-                <option value="price-asc">Price: Low to High</option>
-                <option value="price-desc">Price: High to Low</option>
-              </select>
+              <div className="flex items-center gap-3">
+                <div className="hidden sm:flex items-center gap-1 border border-[#2A2E30]/15 rounded-sm p-1" data-testid="grid-density-toggle">
+                  {GRID_OPTIONS.map(({ columns: n, icon: Icon, label }) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setColumnsAndPersist(n)}
+                      aria-label={label}
+                      aria-pressed={columns === n}
+                      data-testid={`grid-density-${n}`}
+                      className={`p-1.5 rounded-sm transition-colors ${
+                        columns === n ? "bg-[#2A2E30] text-[#E8E3D7]" : "text-[#6E7B85] hover:text-[#2A2E30]"
+                      }`}
+                    >
+                      <Icon size={15} />
+                    </button>
+                  ))}
+                </div>
+                <select
+                  data-testid="sort-select"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="text-sm bg-transparent border border-[#2A2E30]/15 rounded-sm px-3 py-2 focus:outline-none focus:border-[#A0684E]"
+                >
+                  <option value="featured">Featured</option>
+                  <option value="new">Newest</option>
+                  <option value="price-asc">Price: Low to High</option>
+                  <option value="price-desc">Price: High to Low</option>
+                </select>
+              </div>
             </div>
 
             {/* Grid */}
             {loading ? (
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
-                {Array.from({ length: 6 }).map((_, i) => (
+              <div className={`grid ${gridCls} gap-6`}>
+                {Array.from({ length: pageSize }).map((_, i) => (
                   <div key={i} className="aspect-[3/4] bg-[#DDD5C4] animate-pulse rounded-sm" />
                 ))}
               </div>
@@ -170,11 +264,27 @@ export const Category = () => {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6" data-testid="products-grid">
-                {filtered.map((p, i) => (
-                  <ProductCard key={p.id} product={p} index={i} />
-                ))}
-              </div>
+              <>
+                <div className={`grid ${gridCls} gap-4 md:gap-6`} data-testid="products-grid">
+                  {filtered.map((p, i) => (
+                    <ProductCard key={p.id} product={p} index={i} />
+                  ))}
+                </div>
+                {hasMore && (
+                  <div className="flex justify-center mt-10">
+                    <button
+                      type="button"
+                      onClick={loadMore}
+                      disabled={loadingMore}
+                      data-testid="load-more-button"
+                      className="inline-flex items-center gap-2 border border-[#2A2E30]/25 px-8 py-3 rounded-sm text-xs uppercase tracking-[0.2em] hover:border-[#A0684E] hover:text-[#A0684E] transition-colors disabled:opacity-60"
+                    >
+                      {loadingMore && <Loader2 size={14} className="animate-spin" />}
+                      {loadingMore ? "Loading…" : "Load more"}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

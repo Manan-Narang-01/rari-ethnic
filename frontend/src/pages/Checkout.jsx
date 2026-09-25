@@ -3,6 +3,7 @@ import { useNavigate, Link, Navigate } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { api, formatINR } from "@/lib/api";
+import { Seo } from "@/components/Seo";
 import { Check, ChevronLeft, Truck, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
@@ -74,12 +75,22 @@ export const Checkout = () => {
         toast.error("Please fill contact details");
         return false;
       }
+      if (!/^\S+@\S+\.\S+$/.test(form.email)) {
+        toast.error("Enter a valid email address");
+        return false;
+      }
+      // Indian mobile numbers: 10 digits, starting 6-9. Strips spaces/dashes/
+      // a leading +91 so "+91 98765-43210" style input still validates.
+      if (!/^[6-9]\d{9}$/.test(form.phone.replace(/[\s-]/g, "").replace(/^\+?91/, ""))) {
+        toast.error("Enter a valid 10-digit mobile number");
+        return false;
+      }
     } else if (step === 1) {
       if (!form.address_line1 || !form.city || !form.state || !form.pincode) {
         toast.error("Please fill address");
         return false;
       }
-      if (form.pincode.length !== 6) {
+      if (!/^\d{6}$/.test(form.pincode)) {
         toast.error("Enter a valid 6-digit PIN code");
         return false;
       }
@@ -196,6 +207,7 @@ export const Checkout = () => {
 
   return (
     <div className="bg-[#E8E3D7]">
+      <Seo title="Checkout" noindex />
       <div className="container-x py-10">
         <Link to="/" className="text-sm text-[#6E7B85] hover:text-[#A0684E] inline-flex items-center gap-1">
           <ChevronLeft size={14} /> Continue shopping

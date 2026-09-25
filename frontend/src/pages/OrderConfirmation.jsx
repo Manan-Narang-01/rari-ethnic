@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api, buildWaLink, formatINR } from "@/lib/api";
+import { Seo } from "@/components/Seo";
 import { CheckCircle2, MessageCircle } from "lucide-react";
 
 export const OrderConfirmation = () => {
@@ -21,6 +22,7 @@ export const OrderConfirmation = () => {
 
   return (
     <div className="bg-[#E8E3D7]">
+      <Seo title="Order Confirmed" noindex />
       <div className="container-x py-16 max-w-2xl">
         <div className="text-center fade-up">
           <div className="inline-flex w-16 h-16 rounded-full bg-[#B58D3E]/20 items-center justify-center">

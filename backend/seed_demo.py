@@ -1,22 +1,22 @@
 """Seed a few demo products for local testing.
 
-Run once after starting MongoDB:  python seed_demo.py
-Safe to re-run — it skips products whose slug already exists.
+Run once after `alembic upgrade head`:  python seed_demo.py
+Safe to re-run -- it skips products whose slug already exists.
 """
-import os
+import asyncio
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
-from dotenv import load_dotenv
-from pymongo import MongoClient
 
-load_dotenv(Path(__file__).parent / ".env")
+from sqlalchemy import select
 
-client = MongoClient(os.environ.get("MONGO_URL", "mongodb://localhost:27017"))
-db = client[os.environ.get("DB_NAME", "rari_local")]
+from app import database
+from app.db.models import ProductRow
 
 IMG = "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=1200"
-IMG2 = "https://images.unsplash.com/photo-1583391733956-6c78276477e2?w=1200"
+# The original second demo image (photo-1583391733956-6c78276477e2) is now a
+# dead Unsplash URL (404) -- it made every product's hover/secondary image
+# blank on the storefront. Replaced with a live one.
+IMG2 = "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1200"
 
 DEMO = [
     {
@@ -65,24 +65,37 @@ BASE = {
     "color_hex": ["#A0684E"],
     "images": [IMG, IMG2],
     "is_active": True,
+    "shipping_enabled": False,
+    "shipping_charge": 0,
 }
 
-inserted = 0
-for p in DEMO:
-    if db.products.find_one({"slug": p["slug"]}):
-        print(f"skip (exists): {p['slug']}")
-        continue
-    doc = {
-        "id": str(uuid.uuid4()),
-        **BASE,
-        **p,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-    doc.setdefault("compare_at_price", None)
-    doc.setdefault("navratri_day", None)
-    doc.setdefault("edit_tag", None)
-    db.products.insert_one(doc)
-    inserted += 1
-    print(f"added: {p['name']}")
 
-print(f"\nDone. Inserted {inserted} demo product(s) into '{db.name}'.")
+async def main() -> None:
+    database.connect()
+    inserted = 0
+    async with database.get_session() as session:
+        for p in DEMO:
+            existing = await session.scalar(select(ProductRow.id).where(ProductRow.slug == p["slug"]))
+            if existing:
+                print(f"skip (exists): {p['slug']}")
+                continue
+            doc = {
+                "id": str(uuid.uuid4()),
+                **BASE,
+                **p,
+                "created_at": datetime.now(timezone.utc),
+            }
+            doc.setdefault("compare_at_price", None)
+            doc.setdefault("navratri_day", None)
+            doc.setdefault("edit_tag", None)
+            session.add(ProductRow(**doc))
+            inserted += 1
+            print(f"added: {p['name']}")
+        await session.commit()
+
+    print(f"\nDone. Inserted {inserted} demo product(s).")
+    await database.close()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

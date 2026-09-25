@@ -1,8 +1,9 @@
 import logging
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from app.api.deps import get_current_user
+from app.core.rate_limit import limiter
 from app.schemas.auth import (
     ForgotPasswordRequest,
     LoginRequest,
@@ -23,25 +24,29 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/register", response_model=RegisterResponse)
-async def register(payload: RegisterRequest):
+@limiter.limit("20/minute")
+async def register(request: Request, payload: RegisterRequest):
     user = await AuthService.register_customer(payload.name, payload.email, payload.password, payload.phone)
     return {"message": "Check your email for a verification code.", "email": user["email"]}
 
 
 @router.post("/verify-otp", response_model=TokenResponse)
-async def verify_otp(payload: VerifyOtpRequest):
+@limiter.limit("10/minute")
+async def verify_otp(request: Request, payload: VerifyOtpRequest):
     user = await AuthService.verify_registration_otp(payload.email, payload.code)
     return await AuthService.issue_tokens(user)
 
 
 @router.post("/resend-otp")
-async def resend_otp(payload: ResendOtpRequest):
+@limiter.limit("5/minute")
+async def resend_otp(request: Request, payload: ResendOtpRequest):
     await AuthService.resend_registration_otp(payload.email)
     return {"message": "If that account needs verifying, a new code has been sent."}
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(payload: LoginRequest):
+@limiter.limit("10/minute")
+async def login(request: Request, payload: LoginRequest):
     user = await AuthService.authenticate(payload.email, payload.password)
     return await AuthService.issue_tokens(user)
 
@@ -63,7 +68,8 @@ async def me(user: dict = Depends(get_current_user)):
 
 
 @router.post("/forgot-password")
-async def forgot_password(payload: ForgotPasswordRequest):
+@limiter.limit("5/minute")
+async def forgot_password(request: Request, payload: ForgotPasswordRequest):
     raw_token = await AuthService.request_password_reset(payload.email)
     # No email/SMS provider is wired up yet (see roadmap phase on notifications) --
     # log the token so it can be tested locally. Never do this in production.
@@ -75,6 +81,7 @@ async def forgot_password(payload: ForgotPasswordRequest):
 
 
 @router.post("/reset-password")
-async def reset_password(payload: ResetPasswordRequest):
+@limiter.limit("10/minute")
+async def reset_password(request: Request, payload: ResetPasswordRequest):
     await AuthService.reset_password(payload.token, payload.new_password)
     return {"reset": True}

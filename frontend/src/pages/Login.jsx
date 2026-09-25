@@ -4,13 +4,14 @@ import { useAuth, isStaffRole } from "@/context/AuthContext";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { PasswordInput } from "@/components/PasswordInput";
 import { GOOGLE_CLIENT_ID } from "@/lib/api";
+import { Seo } from "@/components/Seo";
 import { LOGIN } from "@/constants/testIds/auth";
 import { ShieldCheck, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 
 // Where to land after sign-in when the caller didn't ask for a specific
-// page via ?next= — customers go to their account, staff to the dashboard.
-const defaultDest = (user) => (isStaffRole(user?.role) ? "/admin" : "/account");
+// page via ?next= — customers go to the storefront home, staff to the dashboard.
+const defaultDest = (user) => (isStaffRole(user?.role) ? "/admin" : "/");
 
 export const Login = () => {
   const { isAuthenticated, user, login, loginWithGoogle, devLogin, loading } = useAuth();
@@ -21,8 +22,7 @@ export const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const explicitNext = params.get("next");
-  const next = explicitNext || "/account";
-  const nextQuery = next !== "/account" ? `?next=${encodeURIComponent(next)}` : "";
+  const nextQuery = explicitNext ? `?next=${encodeURIComponent(explicitNext)}` : "";
   const googleConfigured = !!GOOGLE_CLIENT_ID;
 
   if (loading) return <div className="container-x py-24 text-center text-[#6E7B85]">Loading…</div>;
@@ -86,6 +86,7 @@ export const Login = () => {
 
   return (
     <div className="bg-[#E8E3D7] min-h-[70vh] flex items-center justify-center px-4 py-16">
+      <Seo title="Sign In" noindex />
       <div className="w-full max-w-md">
         <Link to="/" className="text-sm text-[#6E7B85] hover:text-[#A0684E] inline-flex items-center gap-1">
           <ChevronLeft size={14} /> Back to shop

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { api, formatINR } from "@/lib/api";
+import { Seo } from "@/components/Seo";
 import { toast } from "sonner";
 import { Package, LogOut, ShoppingBag, RefreshCw } from "lucide-react";
 
@@ -53,6 +54,7 @@ export const Account = () => {
 
   return (
     <div className="bg-[#E8E3D7] min-h-[70vh]">
+      <Seo title="My Account" noindex />
       <div className="container-x py-12">
         {/* Profile header */}
         <div className="flex items-center justify-between gap-4 flex-wrap">

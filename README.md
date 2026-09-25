@@ -13,7 +13,7 @@ Originally scaffolded on the Emergent `fastapi_react_mongo_shadcn` stack.
 | Layer | Tech |
 |-------|------|
 | Frontend | React 19, React Router 7, CRA (react-scripts 5) via **CRACO**, TailwindCSS 3, shadcn/ui (Radix), Framer Motion, axios |
-| Backend | FastAPI, Uvicorn, MongoDB (Motor async driver), Pydantic v2 |
+| Backend | FastAPI, Uvicorn, PostgreSQL (SQLAlchemy async + asyncpg, Alembic migrations), Pydantic v2 |
 | Auth | Admin: email + password (JWT). Customer: Google Sign-In (JWT), with a passwordless dev-login fallback for local testing |
 | Storage | Emergent object storage for product image uploads (only available on the Emergent platform) |
 
@@ -23,7 +23,9 @@ Originally scaffolded on the Emergent `fastapi_react_mongo_shadcn` stack.
 
 - **Node.js** 18+ and **Yarn** (`npm i -g yarn`). The project uses Yarn `resolutions`, which npm ignores — **use Yarn, not npm**.
 - **Python** 3.11+ (3.12 recommended).
-- **MongoDB** running locally (`mongodb://localhost:27017`) or a MongoDB Atlas connection string.
+- **PostgreSQL**, either a local instance or a free managed one (e.g. [Neon](https://neon.tech)).
+  For local dev without installing Postgres, a disposable Docker container works well:
+  `docker run -d -e POSTGRES_USER=rari -e POSTGRES_PASSWORD=rari_dev_pw -e POSTGRES_DB=rariethnic -p 5433:5432 postgres:16-alpine`
 
 > ⚠️ Windows note: it's common to have multiple Python installs where `python` and `uvicorn`
 > resolve to *different* interpreters. Always launch the API with `python -m uvicorn ...`
@@ -37,7 +39,7 @@ Originally scaffolded on the Emergent `fastapi_react_mongo_shadcn` stack.
 
 ```bash
 cd backend
-python -m pip install fastapi "uvicorn[standard]" motor pymongo pydantic python-dotenv bcrypt pyjwt requests python-multipart
+python -m pip install fastapi "uvicorn[standard]" "sqlalchemy[asyncio]" asyncpg alembic pydantic python-dotenv bcrypt pyjwt requests python-multipart
 cp .env.example .env        # then edit values (see below)
 ```
 
@@ -53,13 +55,14 @@ yarn install
 cp .env.example .env        # then edit values
 ```
 
-### 3. Start MongoDB
+### 3. Start Postgres and create the schema
 
-If installed as a Windows service but stopped/disabled (run in an **Administrator** PowerShell):
+Make sure Postgres is reachable at whatever `DATABASE_URL` you put in `backend/.env` (see the
+Docker one-liner in Prerequisites for local dev), then create the tables:
 
-```powershell
-Set-Service -Name "MongoDB" -StartupType Automatic
-Start-Service -Name "MongoDB"
+```bash
+cd backend
+python -m alembic upgrade head
 ```
 
 ### 4. (Optional) Seed demo products
@@ -94,8 +97,7 @@ Open **http://localhost:3000**. Admin panel at **http://localhost:3000/admin**
 ### `backend/.env`
 | Var | Required | Notes |
 |-----|----------|-------|
-| `MONGO_URL` | ✅ | e.g. `mongodb://localhost:27017` |
-| `DB_NAME` | ✅ | e.g. `rari_local` |
+| `DATABASE_URL` | ✅ | e.g. `postgresql://rari:rari_dev_pw@localhost:5433/rariethnic` (a plain `postgresql://` URL works — it's upgraded to the asyncpg driver scheme automatically) |
 | `JWT_SECRET` | ✅ | long random string (`python -c "import secrets;print(secrets.token_hex(32))"`) |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | ✅ | seeds/updates the admin user on startup |
 | `CORS_ORIGINS` | ✅ | comma-separated; use `http://localhost:3000` locally |
@@ -118,7 +120,7 @@ Open **http://localhost:3000**. Admin panel at **http://localhost:3000/admin**
   (`/api/admin/*`, JWT `role: admin`). Customer (`/api/customer/*`, JWT `role: customer`).
 - **Two token types** share one axios instance. `frontend/src/lib/api.js` has a request interceptor:
   admin token for `/admin` + `/auth` routes, customer token for everything else.
-- **Dynamic content** lives in two Mongo collections, both seeded with defaults on startup:
+- **Dynamic content** lives in two Postgres tables, both seeded with defaults on startup:
   - `settings` (singleton) — announcement bar, shipping rules, socials, homepage hero/categories/why, Instagram tiles.
   - `campaigns` — events like Navratri: countdown date, hero, day-colours, shloka. One is `is_active`.
   Frontend reads them via `SiteContext` and falls back to hardcoded defaults if the API is unavailable.

@@ -1,11 +1,14 @@
 import logging
 
 from fastapi import FastAPI
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from starlette.middleware.cors import CORSMiddleware
 
 from app import database
 from app.api.v1.router import api_router
 from app.config import settings
+from app.core.rate_limit import limiter
 from app.core.security import hash_password, verify_password
 from app.repositories.campaign_repo import CampaignRepository
 from app.repositories.cart_repo import CartRepository
@@ -28,6 +31,9 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Rari Ethnic API")
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 app.include_router(api_router)
 
 app.add_middleware(
@@ -36,7 +42,28 @@ app.add_middleware(
     allow_origins=settings.cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Custom response headers aren't visible to browser JS by default under
+    # CORS -- must be explicitly exposed. (A "*" wildcard here is ignored by
+    # the Fetch spec whenever allow_credentials is True, so it has to be named.)
+    expose_headers=["X-Has-More"],
 )
+
+
+@app.middleware("http")
+async def security_headers(request, call_next):
+    """Baseline hardening headers for a JSON API + file-serving backend.
+    No Content-Security-Policy here deliberately: this process doesn't render
+    the storefront's HTML (that's the separate CRA app) and a CSP tuned for a
+    JSON/file API would either be a no-op or break FastAPI's own /docs page
+    (which loads its UI from a CDN) -- CSP belongs on the frontend's hosting
+    layer instead."""
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
+    return response
 
 
 async def _seed_role(email: str, password: str, role: str) -> None:
@@ -79,6 +106,16 @@ async def startup_tasks():
         logger.error("Index creation failed: %s", e)
 
     try:
+        # Postgres has no TTL-index equivalent to Mongo's expireAfterSeconds --
+        # this is best-effort housekeeping, not a security control (see each
+        # repo's cleanup_expired docstring).
+        await SessionRepository.cleanup_expired()
+        await PasswordResetRepository.cleanup_expired()
+        await OtpRepository.cleanup_expired()
+    except Exception as e:
+        logger.error("Expired-record cleanup failed: %s", e)
+
+    try:
         await _seed_role(settings.admin_email, settings.admin_password, "admin")
         await _seed_role(settings.super_admin_email, settings.super_admin_password, "super_admin")
         await UserRepository.backfill_defaults()
@@ -118,4 +155,4 @@ async def startup_tasks():
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
-    database.close()
+    await database.close()

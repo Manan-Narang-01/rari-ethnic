@@ -164,13 +164,24 @@ class AuthService:
     @staticmethod
     async def authenticate_dev(email: str, name: str = None) -> dict:
         """Passwordless test login. Only available when Google is not configured
-        (or ALLOW_DEV_LOGIN is set) -- see dev_login_allowed."""
+        (or ALLOW_DEV_LOGIN is set) -- see dev_login_allowed.
+
+        SECURITY: must only ever create a brand-new throwaway account, never
+        authenticate as an email that already has one. Previously this looked
+        the email up and logged in as the existing user if found -- since this
+        endpoint takes no password, that meant anyone who knew (or guessed) a
+        real customer's email could take over their account with zero
+        authentication, for any deployment where dev-login is enabled (which
+        is the *default* state whenever Google Sign-In isn't configured yet).
+        """
         if not AuthService.dev_login_allowed():
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Dev login is disabled")
         email = email.strip().lower()
-        user = await UserRepository.get_by_email(email)
-        if not user:
-            user = await UserRepository.create(
-                name=name or email.split("@")[0], email=email, role="customer", email_verified=True,
+        if await UserRepository.get_by_email(email):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="An account with this email already exists. Please sign in with your password or Google account instead.",
             )
-        return user
+        return await UserRepository.create(
+            name=name or email.split("@")[0], email=email, role="customer", email_verified=True,
+        )

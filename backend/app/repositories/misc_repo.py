@@ -1,29 +1,39 @@
-from app.database import get_database
+from sqlalchemy import select
+
+from app.database import get_session
+from app.db.base import coerce_datetimes, row_to_dict
+from app.db.models import ContactMessageRow, SubscriberRow
+
+_DATETIME_FIELDS = {"created_at"}
 
 
 class SubscriberRepository:
-    @staticmethod
-    def _collection():
-        return get_database().subscribers
-
     @classmethod
     async def insert(cls, doc: dict) -> None:
-        await cls._collection().insert_one(doc)
+        row = SubscriberRow(**coerce_datetimes(doc, _DATETIME_FIELDS))
+        async with get_session() as session:
+            session.add(row)
+            await session.commit()
 
     @classmethod
     async def list_all(cls) -> list:
-        return await cls._collection().find({}, {"_id": 0}).sort("created_at", -1).to_list(2000)
+        async with get_session() as session:
+            rows = (await session.scalars(select(SubscriberRow).order_by(SubscriberRow.created_at.desc()).limit(2000))).all()
+            return [row_to_dict(r) for r in rows]
 
 
 class ContactMessageRepository:
-    @staticmethod
-    def _collection():
-        return get_database().contact_messages
-
     @classmethod
     async def insert(cls, doc: dict) -> None:
-        await cls._collection().insert_one(doc)
+        row = ContactMessageRow(**coerce_datetimes(doc, _DATETIME_FIELDS))
+        async with get_session() as session:
+            session.add(row)
+            await session.commit()
 
     @classmethod
     async def list_all(cls) -> list:
-        return await cls._collection().find({}, {"_id": 0}).sort("created_at", -1).to_list(2000)
+        async with get_session() as session:
+            rows = (await session.scalars(
+                select(ContactMessageRow).order_by(ContactMessageRow.created_at.desc()).limit(2000)
+            )).all()
+            return [row_to_dict(r) for r in rows]

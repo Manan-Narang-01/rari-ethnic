@@ -4,6 +4,7 @@ import { api, buildWaLink, formatINR } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
 import { MessageCircle, Truck, ShieldCheck, RotateCcw, ChevronDown } from "lucide-react";
 import { ProductCard } from "@/components/ProductCard";
+import { Seo } from "@/components/Seo";
 import { toast } from "sonner";
 
 export const ProductDetail = () => {
@@ -65,8 +66,45 @@ export const ProductDetail = () => {
 
   const waMsg = `Hi Rari Ethnic! I'd like to ask about "${product.name}" (${product.slug}). Is size ${size || "..."} available?`;
 
+  const category = product.categories?.[0];
+  const availability = product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock";
+  const origin = window.location.origin;
+
   return (
     <div className="bg-[#E8E3D7]">
+      <Seo
+        title={`${product.name} — ${formatINR(product.price)}`}
+        description={product.description || `${product.name} — handcrafted Indian ethnic wear from Rari Ethnic, Surat.`}
+        image={product.images?.[0]}
+        type="product"
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "Product",
+            name: product.name,
+            image: product.images || [],
+            description: product.description,
+            sku: product.slug,
+            brand: { "@type": "Brand", name: "Rari Ethnic" },
+            offers: {
+              "@type": "Offer",
+              url: `${origin}/product/${product.slug}`,
+              priceCurrency: "INR",
+              price: product.price,
+              availability,
+            },
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Home", item: `${origin}/` },
+              { "@type": "ListItem", position: 2, name: category, item: `${origin}/shop/${category}` },
+              { "@type": "ListItem", position: 3, name: product.name, item: `${origin}/product/${product.slug}` },
+            ],
+          },
+        ]}
+      />
       <div className="container-x py-6">
         <div className="text-sm text-[#6E7B85]">
           <Link to="/" className="hover:text-[#A0684E]">Home</Link>

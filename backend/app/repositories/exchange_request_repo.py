@@ -1,55 +1,65 @@
-from datetime import datetime
+from sqlalchemy import select, update
 
-from app.database import get_database
+from app.database import get_session
+from app.db.base import coerce_datetimes, row_to_dict
+from app.db.models import ExchangeRequestRow
+
+_DATETIME_FIELDS = {"created_at", "updated_at"}
 
 
 class ExchangeRequestRepository:
-    @staticmethod
-    def _collection():
-        return get_database().exchange_requests
-
     @classmethod
     async def insert(cls, doc: dict) -> None:
-        await cls._collection().insert_one(doc)
+        row = ExchangeRequestRow(**coerce_datetimes(doc, _DATETIME_FIELDS))
+        async with get_session() as session:
+            session.add(row)
+            await session.commit()
 
     @classmethod
     async def get_by_id(cls, request_id: str) -> dict:
-        doc = await cls._collection().find_one({"id": request_id}, {"_id": 0})
-        return _coerce_dates(doc) if doc else None
+        async with get_session() as session:
+            row = await session.get(ExchangeRequestRow, request_id)
+            return row_to_dict(row)
 
     @classmethod
     async def get_active_for_order(cls, order_id: str) -> dict:
         """An existing request that isn't rejected -- used to block duplicate
         requests for the same order while one is pending/approved/completed."""
-        doc = await cls._collection().find_one(
-            {"order_id": order_id, "status": {"$ne": "rejected"}}, {"_id": 0}
-        )
-        return _coerce_dates(doc) if doc else None
+        async with get_session() as session:
+            row = await session.scalar(
+                select(ExchangeRequestRow).where(
+                    ExchangeRequestRow.order_id == order_id, ExchangeRequestRow.status != "rejected"
+                )
+            )
+            return row_to_dict(row)
 
     @classmethod
     async def list_for_user(cls, user_id: str) -> list:
-        docs = await cls._collection().find({"user_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(500)
-        return [_coerce_dates(d) for d in docs]
+        async with get_session() as session:
+            rows = (await session.scalars(
+                select(ExchangeRequestRow).where(ExchangeRequestRow.user_id == user_id)
+                .order_by(ExchangeRequestRow.created_at.desc()).limit(500)
+            )).all()
+            return [row_to_dict(r) for r in rows]
 
     @classmethod
     async def list_all(cls) -> list:
-        docs = await cls._collection().find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
-        return [_coerce_dates(d) for d in docs]
+        async with get_session() as session:
+            rows = (await session.scalars(
+                select(ExchangeRequestRow).order_by(ExchangeRequestRow.created_at.desc()).limit(1000)
+            )).all()
+            return [row_to_dict(r) for r in rows]
 
     @classmethod
     async def update(cls, request_id: str, updates: dict) -> bool:
-        r = await cls._collection().update_one({"id": request_id}, {"$set": updates})
-        return r.matched_count > 0
+        async with get_session() as session:
+            result = await session.execute(
+                update(ExchangeRequestRow).where(ExchangeRequestRow.id == request_id)
+                .values(**coerce_datetimes(updates, _DATETIME_FIELDS))
+            )
+            await session.commit()
+            return result.rowcount > 0
 
     @classmethod
     async def ensure_indexes(cls) -> None:
-        await cls._collection().create_index("id", unique=True)
-        await cls._collection().create_index("order_id")
-        await cls._collection().create_index("user_id")
-
-
-def _coerce_dates(doc: dict) -> dict:
-    for field in ("created_at", "updated_at"):
-        if isinstance(doc.get(field), str):
-            doc[field] = datetime.fromisoformat(doc[field])
-    return doc
+        pass

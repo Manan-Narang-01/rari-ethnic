@@ -33,7 +33,7 @@ Frontend (static build: React/CRA)  ──calls──►  Backend (FastAPI, /api
   hosted on: Vercel / Netlify /                   hosted on: Render / Railway /
   static S3+CDN / Nginx                            Fly.io / any container host
                                                        │
-                                                       ├─► MongoDB Atlas (data)
+                                                       ├─► PostgreSQL (Neon recommended) (data)
                                                        └─► S3-compatible storage (product images)
 ```
 
@@ -43,24 +43,30 @@ frontend's origin). Follow the sections in order — each one hands you a value 
 
 ---
 
-## 1. Provision MongoDB (Atlas recommended)
+## 1. Provision PostgreSQL (Neon recommended)
 
-Self-hosting Mongo means you own backups/failover/patching — not worth it at this project's
-scale. Use [MongoDB Atlas](https://www.mongodb.com/atlas) (free/shared tier is enough to start):
+Self-hosting Postgres means you own backups/failover/patching — not worth it at this project's
+scale. Use [Neon](https://neon.tech) (free tier, serverless, standard Postgres wire protocol —
+also works with pgAdmin if you want a GUI):
 
-1. Create a cluster (any region close to where the backend will run).
-2. **Database Access** → add a database user (username + strong password, "Read and write to any
-   database" scoped to the app's DB, or scope tighter to the specific DB name you'll use).
-3. **Network Access** → add an IP allowlist entry. If your backend host has a static egress IP,
-   use it; otherwise `0.0.0.0/0` (allow from anywhere) is the pragmatic default for PaaS hosts
-   with dynamic IPs — access is still gated by the DB username/password.
-4. **Connect** → "Drivers" → copy the `mongodb+srv://...` connection string. This becomes
-   `MONGO_URL` in step 3.
-5. Pick a database name (anything — e.g. `rariethnic_prod`) for `DB_NAME`. Collections and indexes
-   are created automatically on first backend startup (`UserRepository.ensure_indexes()` etc. run
-   in `app/main.py`'s startup hook) — no manual schema setup needed.
-6. Turn on Atlas's built-in continuous backup (Atlas UI → Backup) — an untested/absent backup is
-   not a backup.
+1. Create a project (any region close to where the backend will run).
+2. Copy the connection string Neon gives you — a plain `postgresql://user:pass@host/dbname`
+   URL. This becomes `DATABASE_URL` in step 3 (`app/config.py` upgrades it to the asyncpg driver
+   scheme automatically, so no manual editing is needed).
+3. Run the schema migration once, from your machine or CI, pointed at that URL:
+   ```bash
+   cd backend
+   DATABASE_URL=<the connection string> python -m alembic upgrade head
+   ```
+   This creates every table/index/constraint (see `backend/alembic/versions/`) — no manual schema
+   setup needed. Tables/rows for default categories, the settings singleton, and the payment/
+   shipping/email provider catalog are seeded automatically on first backend startup
+   (`app/main.py`'s startup hook), same as before.
+4. Neon's free tier includes point-in-time restore for the last 24h out of the box; for longer
+   retention, check their paid tiers or run your own periodic `pg_dump` to S3-compatible storage —
+   an untested/absent backup is not a backup.
+5. **pgAdmin**: connect to the same Neon connection string (Neon requires SSL — pgAdmin's default
+   connection dialog handles this automatically) if you want a GUI for browsing/editing data.
 
 ---
 
@@ -92,14 +98,13 @@ reads is in `app/config.py`:
 
 | Variable | Production value | Notes |
 |---|---|---|
-| `MONGO_URL` | Atlas connection string from §1 | |
-| `DB_NAME` | your chosen DB name | |
+| `DATABASE_URL` | Neon connection string from §1 | |
 | `APP_NAME` | `rariethnic` (or leave default) | used as an object-storage path prefix |
 | `CORS_ORIGINS` | `https://yourdomain.com` (comma-separate multiple) | **Must not be left as `*`/unset in prod** — see §12 of the architecture doc. |
 | `JWT_SECRET` | a long random value, **not** the placeholder | Generate: `python -c "import secrets; print(secrets.token_urlsafe(64))"`. Rotating this invalidates every issued token — treat it as a real secret, store it in your platform's secret manager. |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `30` (default is fine) | |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | `30` (default is fine) | |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | your real admin email + a strong password, **or leave both blank** | If set, seeded/synced into the DB on every startup (see the recent change — plaintext no longer needs to live in `.env` long-term: set it once to create the account, then blank both vars out and the account persists in Mongo as a bcrypt hash, same as any account created via Register). |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | your real admin email + a strong password, **or leave both blank** | If set, seeded/synced into the DB on every startup (see the recent change — plaintext no longer needs to live in `.env` long-term: set it once to create the account, then blank both vars out and the account persists in Postgres as a bcrypt hash, same as any account created via Register). |
 | `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` | same pattern, for the super-admin account | |
 | `EMERGENT_LLM_KEY` | leave blank unless staying on Emergent's storage | See §4. |
 | `BACKEND_PUBLIC_URL` | currently unused by any code path — safe to leave blank | Reserved; grep confirms nothing reads it today. |
@@ -179,7 +184,7 @@ direct bucket URLs.*
 ## 5. Deploy the backend
 
 **Platform recommendation** (matches `docs/BACKEND_ARCHITECTURE.md` §10): Render or Railway —
-both do zero-downtime deploys from GitHub, managed TLS, and accept external Mongo Atlas
+both do zero-downtime deploys from GitHub, managed TLS, and accept external Postgres (Neon)
 connections without needing a self-managed DB. DigitalOcean App Platform is the fallback if you
 want a bit more infra control while staying managed.
 
@@ -204,11 +209,14 @@ later only if you need gunicorn's process-management features specifically.
 2. Build: Docker (uses the Dockerfile above), or native Python buildpack running
    `pip install -r requirements.txt` + the same `uvicorn` start command.
 3. Add every env var from §3 in the platform's secret/env UI (not in the Dockerfile).
-4. Deploy. Note the public HTTPS URL the platform gives you (e.g.
+4. Run `alembic upgrade head` against `DATABASE_URL` once, before the first deploy (§1 step 3) —
+   both Render and Railway support a one-off "pre-deploy"/"release" command for exactly this if
+   you'd rather wire it into the deploy pipeline than run it manually.
+5. Deploy. Note the public HTTPS URL the platform gives you (e.g.
    `https://rari-api.onrender.com`) — this becomes `REACT_APP_BACKEND_URL` in §6.
-5. First boot will seed the admin/super-admin (if those env vars are set), create all indexes,
-   and backfill defaults automatically — check the deploy logs for `"Seeded admin user: ..."` /
-   `"Index creation failed"` to confirm.
+6. First boot will seed the admin/super-admin (if those env vars are set) and the default
+   categories/provider catalog automatically — check the deploy logs for `"Seeded admin user:
+   ..."` to confirm. Table/index creation itself already happened in step 4 (Alembic), not here.
 
 ---
 
@@ -232,6 +240,14 @@ static files (`frontend/build/`).
    `try_files $uri /index.html;` (see §7).
 6. Point your domain's DNS at the platform (CNAME/A record per their instructions), and add the
    domain in the platform UI so TLS gets provisioned.
+7. **Sitemap**: `frontend/public/sitemap.xml` is gitignored and generated, not committed — run it
+   against the real domain and live backend before (or as part of) your deploy:
+   ```
+   SITE_URL=https://yourdomain.com REACT_APP_BACKEND_URL=https://api.yourdomain.com yarn sitemap
+   ```
+   Then add `Sitemap: https://yourdomain.com/sitemap.xml` to `frontend/public/robots.txt`. Without
+   `SITE_URL` set, the script writes placeholder `example.com` URLs and warns on stdout — never
+   ship that file as-is.
 
 ---
 
@@ -275,7 +291,7 @@ TLS via Let's Encrypt/certbot, or your platform's managed certificate.
 - **Rotate `JWT_SECRET`** to a real random value (§3) — do this *before* the first real user logs
   in; rotating later invalidates every session.
 - **Set a real admin password**, then (optionally) blank `ADMIN_EMAIL`/`ADMIN_PASSWORD` back out
-  of `.env` once the account exists — it lives in Mongo from then on, same pattern used earlier
+  of `.env` once the account exists — it lives in Postgres from then on, same pattern used earlier
   this session for the dev admin account.
 - **`ALLOW_DEV_LOGIN` must be unset/false in production.** Even without setting it explicitly, the
   passwordless dev-login endpoint auto-enables itself whenever `GOOGLE_CLIENT_ID` is blank
@@ -329,8 +345,8 @@ Run through this against the live production URLs before calling it done:
       `/admin`; log out, log in as the customer account from the register step, visit `/admin`
       directly → bounced to `/account`, not left on a blank/broken page
 - [ ] HTTPS padlock valid on both the frontend and backend domains, no mixed-content warnings
-- [ ] MongoDB Atlas dashboard shows the collections populated (`users`, `products`, `orders`,
-      `refresh_sessions`, `password_resets`) after the above steps
+- [ ] Neon dashboard (or pgAdmin connected to it) shows the tables populated (`users`, `products`,
+      `orders`, `refresh_sessions`, `password_resets`) after the above steps
 - [ ] Confirm `python -m pytest tests/backend_auth_test.py -q` still passes when pointed at the
       production API (`REACT_APP_BACKEND_URL=https://your-api-domain python -m pytest ...`) — this
       exercises register/login/refresh/logout/forgot-password/reset-password against the real

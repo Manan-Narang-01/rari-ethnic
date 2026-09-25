@@ -1,41 +1,57 @@
 from datetime import datetime, timezone
 
-from app.database import get_database
+from sqlalchemy import delete, update
+
+from app.database import get_session
+from app.db.base import row_to_dict
+from app.db.models import RefreshSessionRow
 
 
 class SessionRepository:
     """Tracks issued refresh tokens so they can be revoked (logout, password reset,
     role change) without waiting for natural JWT expiry."""
 
-    @staticmethod
-    def _collection():
-        return get_database().refresh_sessions
-
     @classmethod
     async def create(cls, *, jti: str, user_id: str, expires_at: datetime) -> None:
-        await cls._collection().insert_one({
-            "jti": jti,
-            "user_id": user_id,
-            # Stored as a real datetime (not ISO string, unlike the rest of the app)
-            # because the Mongo TTL index below requires a BSON date type.
-            "expires_at": expires_at,
-            "revoked": False,
-            "created_at": datetime.now(timezone.utc),
-        })
+        row = RefreshSessionRow(
+            jti=jti, user_id=user_id, expires_at=expires_at, revoked=False,
+            created_at=datetime.now(timezone.utc),
+        )
+        async with get_session() as session:
+            session.add(row)
+            await session.commit()
 
     @classmethod
     async def get(cls, jti: str) -> dict:
-        return await cls._collection().find_one({"jti": jti}, {"_id": 0})
+        async with get_session() as session:
+            row = await session.get(RefreshSessionRow, jti)
+            return row_to_dict(row)
 
     @classmethod
     async def revoke(cls, jti: str) -> None:
-        await cls._collection().update_one({"jti": jti}, {"$set": {"revoked": True}})
+        async with get_session() as session:
+            await session.execute(update(RefreshSessionRow).where(RefreshSessionRow.jti == jti).values(revoked=True))
+            await session.commit()
 
     @classmethod
     async def revoke_all_for_user(cls, user_id: str) -> None:
-        await cls._collection().update_many({"user_id": user_id}, {"$set": {"revoked": True}})
+        async with get_session() as session:
+            await session.execute(
+                update(RefreshSessionRow).where(RefreshSessionRow.user_id == user_id).values(revoked=True)
+            )
+            await session.commit()
+
+    @classmethod
+    async def cleanup_expired(cls) -> None:
+        """Best-effort housekeeping standing in for Mongo's TTL index -- the
+        real security boundary is the refresh JWT's own `exp` claim, checked
+        (via decode_token) before this table is ever read in
+        AuthService.refresh_tokens, so this is just cleanup, not a security
+        control."""
+        async with get_session() as session:
+            await session.execute(delete(RefreshSessionRow).where(RefreshSessionRow.expires_at < datetime.now(timezone.utc)))
+            await session.commit()
 
     @classmethod
     async def ensure_indexes(cls) -> None:
-        await cls._collection().create_index("jti", unique=True)
-        await cls._collection().create_index("expires_at", expireAfterSeconds=0)
+        pass

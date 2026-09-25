@@ -1,10 +1,15 @@
 import { Link } from "react-router-dom";
 import { images } from "@/assets/images";
+import { Seo } from "@/components/Seo";
 import { Sparkles, Scissors, MapPin, Users } from "lucide-react";
 
 export const About = () => {
   return (
     <div className="bg-[#E8E3D7]">
+      <Seo
+        title="Our Story"
+        description="Three generations of fabric craft, from a Surat mill to handcrafted kurtis, suits and lehengas. Learn the story behind Rari Ethnic."
+      />
       {/* HERO */}
       <section className="relative overflow-hidden">
         <div className="mandala-overlay" style={{ opacity: 0.05 }} />

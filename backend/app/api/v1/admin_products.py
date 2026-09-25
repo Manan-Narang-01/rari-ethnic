@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Response
 
 from app.api.deps import require_admin
 from app.models.product import Product, ProductCreate, ProductUpdate
@@ -7,10 +9,25 @@ from app.services.product_service import ProductService
 
 router = APIRouter(prefix="/admin/products", tags=["admin:products"], dependencies=[Depends(require_admin)])
 
+MAX_PAGE_SIZE = 100
+
 
 @router.get("", response_model=list)
-async def admin_list_products():
-    return await ProductRepository.list_all()
+async def admin_list_products(
+    response: Response,
+    category: Optional[str] = None,
+    is_active: Optional[bool] = None,
+    q: Optional[str] = None,
+    skip: int = 0,
+    limit: Optional[int] = None,
+):
+    if limit is None:
+        return await ProductRepository.list_all(category=category, is_active=is_active, q=q)  # unpaginated default, unchanged
+
+    capped_limit = max(1, min(limit, MAX_PAGE_SIZE))
+    rows = await ProductRepository.list_all(category=category, is_active=is_active, q=q, skip=skip, limit=capped_limit + 1)
+    response.headers["X-Has-More"] = "true" if len(rows) > capped_limit else "false"
+    return rows[:capped_limit]
 
 
 @router.get("/{product_id}", response_model=Product)

@@ -12,8 +12,8 @@ class Product(BaseModel):
     slug: str
     name: str
     categories: List[str]  # keys into the Category taxonomy, e.g. ["kurtis", "navratri"]
-    price: int
-    compare_at_price: Optional[int] = None
+    price: int = Field(ge=1)
+    compare_at_price: Optional[int] = Field(default=None, ge=0)
     description: str
     fabric: str
     care: str
@@ -23,7 +23,7 @@ class Product(BaseModel):
     colors: List[str] = []
     color_hex: List[str] = []
     images: List[str] = []
-    stock: int = 5
+    stock: int = Field(default=5, ge=0)
     is_bestseller: bool = False
     is_new: bool = False
     is_navratri: bool = False
@@ -34,7 +34,7 @@ class Product(BaseModel):
     # free-shipping-threshold rule for any order containing it (see
     # OrderService.create) instead of stacking with it.
     shipping_enabled: bool = False
-    shipping_charge: int = 0
+    shipping_charge: int = Field(default=0, ge=0)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -42,8 +42,8 @@ class ProductCreate(BaseModel):
     slug: Optional[str] = None
     name: str
     categories: List[str]
-    price: int
-    compare_at_price: Optional[int] = None
+    price: int = Field(ge=1)
+    compare_at_price: Optional[int] = Field(default=None, ge=0)
     description: str = ""
     fabric: str = ""
     care: str = ""
@@ -53,7 +53,7 @@ class ProductCreate(BaseModel):
     colors: List[str] = []
     color_hex: List[str] = []
     images: List[str] = []
-    stock: int = 5
+    stock: int = Field(default=5, ge=0)
     is_bestseller: bool = False
     is_new: bool = False
     is_navratri: bool = False
@@ -61,15 +61,15 @@ class ProductCreate(BaseModel):
     navratri_day: Optional[str] = None
     edit_tag: Optional[str] = None
     shipping_enabled: bool = False
-    shipping_charge: int = 0
+    shipping_charge: int = Field(default=0, ge=0)
 
 
 class ProductUpdate(BaseModel):
     slug: Optional[str] = None
     name: Optional[str] = None
     categories: Optional[List[str]] = None
-    price: Optional[int] = None
-    compare_at_price: Optional[int] = None
+    price: Optional[int] = Field(default=None, ge=1)
+    compare_at_price: Optional[int] = Field(default=None, ge=0)
     description: Optional[str] = None
     fabric: Optional[str] = None
     care: Optional[str] = None
@@ -79,7 +79,7 @@ class ProductUpdate(BaseModel):
     colors: Optional[List[str]] = None
     color_hex: Optional[List[str]] = None
     images: Optional[List[str]] = None
-    stock: Optional[int] = None
+    stock: Optional[int] = Field(default=None, ge=0)
     is_bestseller: Optional[bool] = None
     is_new: Optional[bool] = None
     is_navratri: Optional[bool] = None
@@ -87,4 +87,4 @@ class ProductUpdate(BaseModel):
     navratri_day: Optional[str] = None
     edit_tag: Optional[str] = None
     shipping_enabled: Optional[bool] = None
-    shipping_charge: Optional[int] = None
+    shipping_charge: Optional[int] = Field(default=None, ge=0)

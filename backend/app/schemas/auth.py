@@ -84,5 +84,6 @@ class CustomerOut(BaseModel):
 
 class CustomerTokenResponse(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
     customer: CustomerOut

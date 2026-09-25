@@ -27,6 +27,19 @@ export const AuthProvider = ({ children }) => {
       .finally(() => setLoading(false));
   }, [token]);
 
+  // Fired by lib/api.js when a 401 survives a refresh attempt (refresh token
+  // missing/expired/revoked) -- clears session state so isAuthenticated flips
+  // to false and the existing per-page guards (AdminLayout, Account, etc.)
+  // redirect to /login on their own, same as any other logged-out visit.
+  useEffect(() => {
+    const onSessionExpired = () => {
+      setToken(null);
+      setUser(null);
+    };
+    window.addEventListener("rari:session-expired", onSessionExpired);
+    return () => window.removeEventListener("rari:session-expired", onSessionExpired);
+  }, []);
+
   const login = async (email, password) => {
     const r = await api.post("/auth/login", { email, password });
     localStorage.setItem(AUTH_TOKEN_KEY, r.data.access_token);
@@ -64,6 +77,7 @@ export const AuthProvider = ({ children }) => {
   const loginWithGoogle = async (credential) => {
     const r = await api.post("/customer/google", { credential });
     localStorage.setItem(AUTH_TOKEN_KEY, r.data.access_token);
+    localStorage.setItem(AUTH_REFRESH_KEY, r.data.refresh_token);
     setToken(r.data.access_token);
     setUser(r.data.customer);
     return r.data.customer;
@@ -73,6 +87,7 @@ export const AuthProvider = ({ children }) => {
   const devLogin = async (email, name) => {
     const r = await api.post("/customer/dev-login", { email, name });
     localStorage.setItem(AUTH_TOKEN_KEY, r.data.access_token);
+    localStorage.setItem(AUTH_REFRESH_KEY, r.data.refresh_token);
     setToken(r.data.access_token);
     setUser(r.data.customer);
     return r.data.customer;

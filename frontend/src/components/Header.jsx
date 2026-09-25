@@ -5,6 +5,7 @@ import { useCart } from "@/context/CartContext";
 import { useSite } from "@/context/SiteContext";
 import { useAuth, isStaffRole } from "@/context/AuthContext";
 import { api, INSTAGRAM_URL } from "@/lib/api";
+import { SearchBar } from "@/components/SearchBar";
 
 // Used only if the categories fetch fails or returns nothing — keeps the
 // navbar from ever rendering empty. Note this is separate from the Navratri
@@ -122,6 +123,7 @@ export const Header = () => {
         </nav>
 
         <div className="flex items-center gap-1 sm:gap-3">
+          <SearchBar />
           <a
             href={instagramUrl}
             target="_blank"
@@ -166,6 +168,9 @@ export const Header = () => {
       {/* Mobile drawer */}
       {mobileOpen && (
         <div className="md:hidden border-t border-[#8B9A9F]/25 bg-[#E8E3D7]">
+          <div className="container-x pt-4">
+            <SearchBar mobile onNavigate={() => setMobileOpen(false)} />
+          </div>
           <nav className="container-x py-4 flex flex-col gap-1">
             {nav.map((n) => (
               <NavLink

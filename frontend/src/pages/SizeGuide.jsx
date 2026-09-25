@@ -1,4 +1,5 @@
 import { Ruler, Info } from "lucide-react";
+import { Seo } from "@/components/Seo";
 
 const CHART = [
   { size: "XS", bust: "32", waist: "26", hip: "35" },
@@ -12,6 +13,10 @@ const CHART = [
 export const SizeGuide = () => {
   return (
     <div className="bg-[#E8E3D7]">
+      <Seo
+        title="Size Guide"
+        description="Find your perfect fit for kurtis, suits and lehengas — full size chart with bust, waist and hip measurements in inches."
+      />
       <div className="container-x py-16 md:py-24 max-w-4xl">
         <div className="text-center mb-12 fade-up">
           <span className="label-caps text-[#A0684E]">Sizing</span>

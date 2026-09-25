@@ -42,6 +42,7 @@ export const AdminProductForm = ({ mode = "create" }) => {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [imageUrlInput, setImageUrlInput] = useState("");
 
   useEffect(() => {
     api.get("/admin/categories").then((r) => setAllCategories(r.data)).catch(() => toast.error("Could not load categories"));
@@ -111,8 +112,11 @@ export const AdminProductForm = ({ mode = "create" }) => {
       const fd = new FormData();
       fd.append("file", file);
       try {
+        // Overrides the shared 20s default -- a 10MB image on a slow
+        // connection can legitimately take longer than that to upload.
         const r = await api.post("/admin/upload", fd, {
           headers: { "Content-Type": "multipart/form-data" },
+          timeout: 60000,
         });
         // Turn relative url into full backend url for browser display
         const fullUrl = r.data.url.startsWith("http") ? r.data.url : `${API}${r.data.url.replace(/^\/api/, "")}`;
@@ -136,6 +140,22 @@ export const AdminProductForm = ({ mode = "create" }) => {
     setDragOver(false);
     if (e.dataTransfer.files?.length) uploadFiles(Array.from(e.dataTransfer.files));
   };
+  // Uploads require object storage, which fails in local dev (see CLAUDE.md
+  // gotchas) -- without this, a product's required-image check could never be
+  // satisfied locally at all. Every other image field in the admin (settings,
+  // categories, events) already supports pasting a URL; this brings the
+  // product photo gallery in line with that.
+  const addImageUrl = () => {
+    const url = imageUrlInput.trim();
+    if (!url) return;
+    if (!/^https?:\/\/.+/i.test(url)) {
+      toast.error("Enter a full image URL starting with http:// or https://");
+      return;
+    }
+    setForm((f) => ({ ...f, images: [...f.images, url] }));
+    setImageUrlInput("");
+  };
+
   const removeImage = (i) => {
     setForm((f) => ({ ...f, images: f.images.filter((_, idx) => idx !== i) }));
   };
@@ -151,14 +171,34 @@ export const AdminProductForm = ({ mode = "create" }) => {
     e.preventDefault();
     if (!form.name.trim()) return toast.error("Product name is required");
     if (form.categories.length === 0) return toast.error("Select at least one category");
-    if (!form.price || parseInt(form.price) < 1) return toast.error("Enter a valid price");
+
+    // parseInt("-")/("e")/("+") -- valid intermediate states a browser allows
+    // while typing into a type="number" field -- return NaN, which the old
+    // `!form.price || parseInt(...) < 1` check let straight through (NaN < 1
+    // is false), silently sending price: null to the backend. Number.isFinite
+    // catches that; the explicit "< 0" checks below separately reject typed
+    // negative values, which type="number" alone does not prevent.
+    const priceNum = parseInt(form.price, 10);
+    if (!Number.isFinite(priceNum) || priceNum < 1) return toast.error("Enter a valid price (₹1 or more)");
+    const stockNum = parseInt(form.stock, 10);
+    if (!Number.isFinite(stockNum) || stockNum < 0) return toast.error("Stock quantity can't be negative");
+    let compareAtNum = null;
+    if (form.compare_at_price) {
+      compareAtNum = parseInt(form.compare_at_price, 10);
+      if (!Number.isFinite(compareAtNum) || compareAtNum < 0) return toast.error("Compare-at price must be a valid amount");
+    }
+    let shippingChargeNum = 0;
+    if (form.shipping_enabled) {
+      shippingChargeNum = parseInt(form.shipping_charge, 10);
+      if (!Number.isFinite(shippingChargeNum) || shippingChargeNum < 0) return toast.error("Shipping charge can't be negative");
+    }
     if (form.images.length === 0) return toast.error("Upload at least one image");
     setSaving(true);
     const payload = {
       name: form.name.trim(),
       categories: form.categories,
-      price: parseInt(form.price),
-      compare_at_price: form.compare_at_price ? parseInt(form.compare_at_price) : null,
+      price: priceNum,
+      compare_at_price: compareAtNum,
       description: form.description.trim(),
       fabric: form.fabric.trim(),
       care: form.care.trim(),
@@ -168,7 +208,7 @@ export const AdminProductForm = ({ mode = "create" }) => {
       colors: form.colors.split(",").map((s) => s.trim()).filter(Boolean),
       color_hex: form.color_hex.split(",").map((s) => s.trim()).filter(Boolean),
       images: form.images,
-      stock: parseInt(form.stock) || 0,
+      stock: stockNum,
       is_bestseller: form.is_bestseller,
       is_new: form.is_new,
       is_navratri: form.is_navratri,
@@ -176,7 +216,7 @@ export const AdminProductForm = ({ mode = "create" }) => {
       navratri_day: form.navratri_day || null,
       edit_tag: form.edit_tag || null,
       shipping_enabled: form.shipping_enabled,
-      shipping_charge: form.shipping_enabled ? parseInt(form.shipping_charge) || 0 : 0,
+      shipping_charge: shippingChargeNum,
     };
     try {
       if (mode === "edit") {
@@ -244,11 +284,35 @@ export const AdminProductForm = ({ mode = "create" }) => {
             )}
           </div>
 
+          <div className="mt-3 flex gap-2">
+            <input
+              value={imageUrlInput}
+              onChange={(e) => setImageUrlInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addImageUrl(); } }}
+              placeholder="Or paste an image URL (works without object storage configured)"
+              data-testid="admin-image-url-input"
+              className="flex-1 border-b border-[#8B9A9F]/40 bg-transparent py-2 outline-none focus:border-[#A0684E] text-sm"
+            />
+            <button
+              type="button"
+              onClick={addImageUrl}
+              data-testid="admin-image-url-add"
+              className="px-4 text-xs uppercase tracking-widest border border-[#8B9A9F]/40 rounded-sm hover:border-[#2A2E30] shrink-0"
+            >
+              Add
+            </button>
+          </div>
+
           {form.images.length > 0 && (
             <div className="mt-4 grid grid-cols-3 sm:grid-cols-5 gap-3">
               {form.images.map((src, i) => (
                 <div key={i} className="relative group aspect-[3/4] bg-[#DDD5C4]" data-testid={`uploaded-image-${i}`}>
-                  <img src={src} alt="" className="w-full h-full object-cover" />
+                  <img
+                    src={src}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    onError={(e) => { e.currentTarget.src = "/brand/logo-transparent.png"; }}
+                  />
                   <div className="absolute inset-0 bg-[#2A2E30]/0 group-hover:bg-[#2A2E30]/60 transition-colors flex flex-col items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
                     <button
                       type="button"
@@ -276,9 +340,9 @@ export const AdminProductForm = ({ mode = "create" }) => {
         <Card title="Basics">
           <div className="grid md:grid-cols-2 gap-5">
             <Field label="Product name" value={form.name} onChange={setField("name")} testid="admin-name" required />
-            <Field label="Price ₹" type="number" value={form.price} onChange={setField("price")} testid="admin-price" required />
-            <Field label="Compare-at (strike-through) ₹" type="number" value={form.compare_at_price} onChange={setField("compare_at_price")} testid="admin-compare-price" />
-            <Field label="Stock quantity" type="number" value={form.stock} onChange={setField("stock")} testid="admin-stock" />
+            <Field label="Price ₹" type="number" min="1" value={form.price} onChange={setField("price")} testid="admin-price" required />
+            <Field label="Compare-at (strike-through) ₹" type="number" min="0" value={form.compare_at_price} onChange={setField("compare_at_price")} testid="admin-compare-price" />
+            <Field label="Stock quantity" type="number" min="0" value={form.stock} onChange={setField("stock")} testid="admin-stock" />
             <Field label="Edit tag (e.g. Garba Ready)" value={form.edit_tag} onChange={setField("edit_tag")} testid="admin-edit-tag" />
           </div>
         </Card>
@@ -332,6 +396,7 @@ export const AdminProductForm = ({ mode = "create" }) => {
               <Field
                 label="Shipping charge ₹"
                 type="number"
+                min="0"
                 value={form.shipping_charge}
                 onChange={setField("shipping_charge")}
                 testid="admin-shipping-charge"
@@ -467,7 +532,7 @@ const Card = ({ title, children }) => (
   </div>
 );
 
-const Field = ({ label, value, onChange, type = "text", textarea, rows = 2, placeholder, testid, required }) => (
+const Field = ({ label, value, onChange, type = "text", textarea, rows = 2, placeholder, testid, required, min }) => (
   <div>
     <label className="label-caps">{label}{required && <span className="text-[#A0684E]"> *</span>}</label>
     {textarea ? (
@@ -482,6 +547,7 @@ const Field = ({ label, value, onChange, type = "text", textarea, rows = 2, plac
     ) : (
       <input
         type={type}
+        min={min}
         value={value}
         onChange={onChange}
         placeholder={placeholder}

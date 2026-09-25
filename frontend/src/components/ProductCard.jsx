@@ -27,7 +27,7 @@ export const ProductCard = ({ product, index = 0 }) => {
         />
         <img
           src={secondary}
-          alt=""
+          alt={`${product.name} — alternate view`}
           loading="lazy"
           className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-500 group-hover:opacity-100"
         />

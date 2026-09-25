@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class OrderItem(BaseModel):
@@ -17,13 +17,19 @@ class OrderItem(BaseModel):
 
 class OrderCreate(BaseModel):
     customer_name: str
-    email: str
-    phone: str
+    email: EmailStr
+    # Client already validates these more precisely (10-digit Indian mobile,
+    # optional +91 prefix); the server-side pattern is deliberately looser
+    # (allows spaces/dashes/+prefix) so it can't reject something the client
+    # already accepted -- it only exists to stop obviously-garbage values
+    # (letters, wrong length) from ever reaching an order record and a real
+    # delivery.
+    phone: str = Field(pattern=r"^\+?[\d\s-]{10,15}$")
     address_line1: str
     address_line2: Optional[str] = None
     city: str
     state: str
-    pincode: str
+    pincode: str = Field(pattern=r"^\d{6}$")
     notes: Optional[str] = None
     items: List[OrderItem]
     subtotal: int
@@ -60,3 +66,17 @@ class RazorpayVerify(BaseModel):
 
 
 VALID_ORDER_STATUSES = {"pending_payment", "confirmed", "dispatched", "delivered", "cancelled"}
+
+# Forward-only state machine -- delivered/cancelled are terminal, and a status
+# can only move to one of these from its current value (same-status is always
+# implicitly allowed as a no-op by the caller). Without this, the admin PATCH
+# endpoint accepted any of the 5 values from any other value, so e.g. a
+# cancelled order could be marked delivered, or delivered walked back to
+# pending_payment.
+ORDER_STATUS_TRANSITIONS = {
+    "pending_payment": {"confirmed", "cancelled"},
+    "confirmed": {"dispatched", "cancelled"},
+    "dispatched": {"delivered", "cancelled"},
+    "delivered": set(),
+    "cancelled": set(),
+}

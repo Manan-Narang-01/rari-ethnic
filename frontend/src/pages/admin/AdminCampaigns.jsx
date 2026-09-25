@@ -20,6 +20,10 @@ export const AdminCampaigns = () => {
   useEffect(load, []);
 
   const activate = async (c) => {
+    const current = campaigns.find((x) => x.is_active && x.id !== c.id);
+    if (current && !window.confirm(`Make "${c.name}" live? This will pause "${current.name}", which is currently live.`)) {
+      return;
+    }
     try {
       await api.put(`/admin/campaigns/${c.id}`, { is_active: true });
       toast.success(`"${c.name}" is now live`);

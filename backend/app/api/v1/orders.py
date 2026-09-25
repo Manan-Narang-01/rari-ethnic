@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.api.deps import get_current_user_optional, require_customer
+from app.core.rate_limit import limiter
 from app.models.order import Order, OrderCreate
 from app.repositories.order_repo import OrderRepository
 from app.services.order_service import OrderService
@@ -21,7 +22,10 @@ async def create_order(payload: OrderCreate, user: dict = Depends(get_current_us
 
 
 @router.get("/{order_number}", response_model=Order)
-async def get_order(order_number: str):
+@limiter.limit("30/minute")
+async def get_order(request: Request, order_number: str):
+    # order_number is an unauthenticated lookup secret (guest checkout has no
+    # account to gate this behind) -- rate-limited so it can't be brute-forced.
     doc = await OrderRepository.get_by_order_number(order_number)
     if not doc:
         raise HTTPException(status_code=404, detail="Order not found")

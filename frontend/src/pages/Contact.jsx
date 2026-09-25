@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { MessageCircle, Instagram, Mail, MapPin } from "lucide-react";
 import { api, buildWaLink, INSTAGRAM_URL } from "@/lib/api";
+import { Seo } from "@/components/Seo";
 import { toast } from "sonner";
 
 export const Contact = () => {
@@ -15,7 +16,8 @@ export const Contact = () => {
       toast.success("Message received. We'll reply within a day.");
       setForm({ name: "", email: "", phone: "", message: "" });
     } catch (err) {
-      toast.error("Could not send. Try WhatsApp instead.");
+      const detail = err.response?.data?.detail;
+      toast.error(typeof detail === "string" ? detail : "Could not send. Try WhatsApp instead.");
     } finally {
       setSubmitting(false);
     }
@@ -23,6 +25,10 @@ export const Contact = () => {
 
   return (
     <div className="bg-[#E8E3D7]">
+      <Seo
+        title="Contact Us"
+        description="Get in touch with Rari Ethnic — WhatsApp, Instagram, or send us a message for sizing help, order questions, or custom requests."
+      />
       <div className="container-x py-16 md:py-24">
         <div className="text-center mb-14 fade-up">
           <span className="label-caps text-[#A0684E]">Say hi</span>

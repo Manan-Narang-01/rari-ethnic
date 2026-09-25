@@ -1,61 +1,70 @@
 from datetime import datetime, timezone
 
-from app.database import get_database
+from sqlalchemy import select, update
+
+from app.database import get_session
+from app.db.base import coerce_datetimes, row_to_dict
+from app.db.models import OrderRow
+
+_DATETIME_FIELDS = {"created_at", "delivered_at"}
 
 
 class OrderRepository:
-    @staticmethod
-    def _collection():
-        return get_database().orders
-
     @classmethod
     async def insert(cls, doc: dict) -> None:
-        await cls._collection().insert_one(doc)
+        row = OrderRow(**coerce_datetimes(doc, _DATETIME_FIELDS))
+        async with get_session() as session:
+            session.add(row)
+            await session.commit()
 
     @classmethod
     async def get_by_order_number(cls, order_number: str) -> dict:
-        doc = await cls._collection().find_one({"order_number": order_number}, {"_id": 0})
-        return _coerce_created_at(doc) if doc else None
+        async with get_session() as session:
+            row = await session.scalar(select(OrderRow).where(OrderRow.order_number == order_number))
+            return row_to_dict(row)
 
     @classmethod
     async def get_by_id(cls, order_id: str) -> dict:
-        doc = await cls._collection().find_one({"id": order_id}, {"_id": 0})
-        return _coerce_created_at(doc) if doc else None
+        async with get_session() as session:
+            row = await session.get(OrderRow, order_id)
+            return row_to_dict(row)
 
     @classmethod
     async def list_all(cls) -> list:
-        docs = await cls._collection().find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
-        return [_coerce_created_at(d) for d in docs]
+        async with get_session() as session:
+            rows = (await session.scalars(select(OrderRow).order_by(OrderRow.created_at.desc()).limit(1000))).all()
+            return [row_to_dict(r) for r in rows]
 
     @classmethod
     async def list_for_user(cls, user_id: str) -> list:
-        docs = await cls._collection().find({"user_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(500)
-        return [_coerce_created_at(d) for d in docs]
+        async with get_session() as session:
+            rows = (await session.scalars(
+                select(OrderRow).where(OrderRow.user_id == user_id).order_by(OrderRow.created_at.desc()).limit(500)
+            )).all()
+            return [row_to_dict(r) for r in rows]
 
     @classmethod
     async def update_by_order_number(cls, order_number: str, updates: dict) -> bool:
-        r = await cls._collection().update_one({"order_number": order_number}, {"$set": updates})
-        return r.matched_count > 0
+        async with get_session() as session:
+            result = await session.execute(
+                update(OrderRow).where(OrderRow.order_number == order_number)
+                .values(**coerce_datetimes(updates, _DATETIME_FIELDS))
+            )
+            await session.commit()
+            return result.rowcount > 0
 
     @classmethod
     async def update_status(cls, order_number: str, status: str) -> bool:
-        updates = {"status": status}
-        if status == "delivered":
-            existing = await cls._collection().find_one({"order_number": order_number}, {"delivered_at": 1})
-            if existing is not None and not existing.get("delivered_at"):
-                updates["delivered_at"] = datetime.now(timezone.utc).isoformat()
-        r = await cls._collection().update_one({"order_number": order_number}, {"$set": updates})
-        return r.matched_count > 0
+        async with get_session() as session:
+            values = {"status": status}
+            if status == "delivered":
+                existing = await session.scalar(select(OrderRow.delivered_at).where(OrderRow.order_number == order_number))
+                if existing is None:
+                    values["delivered_at"] = datetime.now(timezone.utc)
+            result = await session.execute(update(OrderRow).where(OrderRow.order_number == order_number).values(**values))
+            await session.commit()
+            return result.rowcount > 0
 
     @classmethod
     async def ensure_indexes(cls) -> None:
-        await cls._collection().create_index("order_number", unique=True)
-        await cls._collection().create_index("id", unique=True)
-        await cls._collection().create_index("user_id")
-
-
-def _coerce_created_at(doc: dict) -> dict:
-    for field in ("created_at", "delivered_at"):
-        if isinstance(doc.get(field), str):
-            doc[field] = datetime.fromisoformat(doc[field])
-    return doc
+        pass

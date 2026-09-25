@@ -13,9 +13,19 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT_DIR / ".env")
 
 
+def _normalize_database_url(raw: str) -> str:
+    """Accepts a plain `postgresql://...` (e.g. pasted straight from Neon/Render/
+    pgAdmin) and upgrades it to the asyncpg driver scheme SQLAlchemy needs,
+    so no provider-specific connection-string editing is required."""
+    if raw.startswith("postgresql://"):
+        return "postgresql+asyncpg://" + raw[len("postgresql://"):]
+    if raw.startswith("postgres://"):  # some providers still hand out the old scheme
+        return "postgresql+asyncpg://" + raw[len("postgres://"):]
+    return raw
+
+
 class Settings:
-    mongo_url: str = os.environ["MONGO_URL"]
-    db_name: str = os.environ["DB_NAME"]
+    database_url: str = _normalize_database_url(os.environ["DATABASE_URL"])
     app_name: str = os.environ.get("APP_NAME", "rariethnic")
 
     jwt_secret: str = os.environ["JWT_SECRET"]
@@ -29,7 +39,14 @@ class Settings:
     super_admin_email: str = os.environ.get("SUPER_ADMIN_EMAIL", "").strip().lower()
     super_admin_password: str = os.environ.get("SUPER_ADMIN_PASSWORD", "")
 
-    cors_origins: list = os.environ.get("CORS_ORIGINS", "*").split(",")
+    # Deny-by-default when unset, rather than "*" -- combined with the
+    # `allow_credentials=True` CORSMiddleware setting in app/main.py, a "*"
+    # default lets Starlette reflect any Origin back as allowed (its documented
+    # behavior for wildcard-with-credentials), which is equivalent to trusting
+    # every website on the internet. An explicit CORS_ORIGINS was already
+    # required by docs/DEPLOYMENT.md for production; this just makes an
+    # unset/misconfigured value fail closed instead of silently wide open.
+    cors_origins: list = [o for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
     backend_public_url: str = os.environ.get("BACKEND_PUBLIC_URL", "")
     # Used to build links inside emails (password reset, etc.). Falls back to
     # the first configured CORS origin so this doesn't need separate setup

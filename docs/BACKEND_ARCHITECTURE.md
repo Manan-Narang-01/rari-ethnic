@@ -2,9 +2,12 @@
 
 **Status:** Phase 1 (foundation: modular structure + accounts/RBAC) is implemented in this
 repo. Everything else described here is a design for phases 2+, not yet built.
-**Database decision:** staying on **MongoDB** (not migrating to PostgreSQL) — extending the
-existing Motor/PyMongo backend rather than rewriting it. See §3 for the reasoning and the
-trade-offs this implies.
+**Database decision — superseded:** this repo has since **migrated from MongoDB to
+PostgreSQL** (SQLAlchemy async + asyncpg, Alembic migrations). §3's reasoning below for staying
+on Mongo was accurate at the time it was written, but is no longer the current state — kept here
+for history rather than rewritten, since the repository-layer isolation it describes (§2) is
+exactly what made the actual migration a repository swap, not a rewrite, when the decision later
+changed. See `docs/DEPLOYMENT.md` §1 for the current Postgres/Neon setup.
 
 ---
 
@@ -123,7 +126,7 @@ the refresh flow (§6).
 | Layer | Choice | Why |
 |---|---|---|
 | Framework | **FastAPI** | Already in place; async, OpenAPI for free, matches the ask. |
-| Database | **MongoDB** (Motor, async) | Kept, not migrated to Postgres — see reasoning below. |
+| Database | **PostgreSQL** (SQLAlchemy async + asyncpg, Alembic) | Migrated from MongoDB after this doc was written — see the superseding note above and `docs/DEPLOYMENT.md` §1. |
 | Schema/validation | **Pydantic v2** | Already in place. |
 | Auth | **JWT access + refresh**, RBAC in code | Implemented in Phase 1 (§6). |
 | Caching | **Redis** (planned, §13 phase 6) | Session/cart cache, rate-limit counters, hot product-list cache. Not needed yet at this traffic scale. |
@@ -180,7 +183,7 @@ backend/
 ├── app/
 │   ├── main.py                 FastAPI app factory: CORS, router mount, startup/shutdown
 │   ├── config.py                Settings — reads env vars once, fails fast if missing
-│   ├── database.py              Motor client lifecycle (connect/close/get_database)
+│   ├── database.py              Async SQLAlchemy engine/session lifecycle (connect/close/get_session)
 │   ├── core/
 │   │   └── security.py          Password hashing, JWT issue/decode (no DB, no FastAPI import)
 │   ├── api/

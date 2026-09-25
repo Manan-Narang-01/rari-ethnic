@@ -3,7 +3,11 @@ import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from app.database import get_database
+from sqlalchemy import delete, select, update
+
+from app.database import get_session
+from app.db.base import row_to_dict
+from app.db.models import OtpRow
 
 OTP_TTL_MINUTES = 10
 MAX_ATTEMPTS = 5
@@ -21,10 +25,6 @@ class OtpRepository:
     until the code is verified -- no user document is created until then, so an
     unverified signup never occupies a real account or a unique email slot."""
 
-    @staticmethod
-    def _collection():
-        return get_database().otps
-
     @classmethod
     async def create(cls, email: str, registration: dict) -> str:
         # Normalized the same way as UserRepository -- callers may pass either
@@ -32,17 +32,15 @@ class OtpRepository:
         # resolve to the same record.
         email = email.strip().lower()
         code = f"{secrets.randbelow(1000000):06d}"
-        await cls._collection().delete_many({"email": email})  # invalidate any earlier attempt
-        await cls._collection().insert_one({
-            "id": str(uuid.uuid4()),
-            "email": email,
-            "code_hash": _hash(code),
-            "registration": registration,
-            "attempts": 0,
-            "expires_at": datetime.now(timezone.utc) + timedelta(minutes=OTP_TTL_MINUTES),
-            "used": False,
-            "created_at": datetime.now(timezone.utc),
-        })
+        row = OtpRow(
+            id=str(uuid.uuid4()), email=email, code_hash=_hash(code), registration=registration,
+            attempts=0, expires_at=datetime.now(timezone.utc) + timedelta(minutes=OTP_TTL_MINUTES),
+            used=False, created_at=datetime.now(timezone.utc),
+        )
+        async with get_session() as session:
+            await session.execute(delete(OtpRow).where(OtpRow.email == email))  # invalidate any earlier attempt
+            session.add(row)
+            await session.commit()
         return code
 
     @classmethod
@@ -50,28 +48,39 @@ class OtpRepository:
         """The not-yet-verified registration record for `email`, for resending
         the code -- or None if there's no pending signup for it."""
         email = email.strip().lower()
-        return await cls._collection().find_one({"email": email, "used": False}, {"_id": 0})
+        async with get_session() as session:
+            row = await session.scalar(select(OtpRow).where(OtpRow.email == email, OtpRow.used.is_(False)))
+            return row_to_dict(row)
 
     @classmethod
     async def verify(cls, email: str, code: str) -> dict:
         """Returns the stored registration payload on success, or None on any
         failure (wrong code, expired, too many attempts, nothing pending)."""
         email = email.strip().lower()
-        record = await cls._collection().find_one({"email": email, "used": False})
-        if not record:
-            return None
-        expires_at = record["expires_at"]
-        if expires_at.tzinfo is None:
-            expires_at = expires_at.replace(tzinfo=timezone.utc)
-        if expires_at < datetime.now(timezone.utc) or record.get("attempts", 0) >= MAX_ATTEMPTS:
-            return None
-        if record["code_hash"] != _hash(code):
-            await cls._collection().update_one({"id": record["id"]}, {"$inc": {"attempts": 1}})
-            return None
-        await cls._collection().update_one({"id": record["id"]}, {"$set": {"used": True}})
-        return record.get("registration")
+        async with get_session() as session:
+            row = await session.scalar(select(OtpRow).where(OtpRow.email == email, OtpRow.used.is_(False)))
+            if not row:
+                return None
+            expires_at = row.expires_at
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            if expires_at < datetime.now(timezone.utc) or row.attempts >= MAX_ATTEMPTS:
+                return None
+            if row.code_hash != _hash(code):
+                await session.execute(update(OtpRow).where(OtpRow.id == row.id).values(attempts=OtpRow.attempts + 1))
+                await session.commit()
+                return None
+            registration = row.registration
+            await session.execute(update(OtpRow).where(OtpRow.id == row.id).values(used=True))
+            await session.commit()
+            return registration
+
+    @classmethod
+    async def cleanup_expired(cls) -> None:
+        async with get_session() as session:
+            await session.execute(delete(OtpRow).where(OtpRow.expires_at < datetime.now(timezone.utc)))
+            await session.commit()
 
     @classmethod
     async def ensure_indexes(cls) -> None:
-        await cls._collection().create_index("email")
-        await cls._collection().create_index("expires_at", expireAfterSeconds=0)
+        pass
