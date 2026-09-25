@@ -11,9 +11,9 @@ const onImgError = (e) => {
   e.currentTarget.src = FALLBACK_SRC;
 };
 
-export const CroppedImage = ({ src, crop, alt = "", className = "" }) => {
+export const CroppedImage = ({ src, crop, alt = "", className = "", loading = "lazy" }) => {
   if (!crop) {
-    return <img src={src} alt={alt} onError={onImgError} className={`w-full h-full object-cover ${className}`} />;
+    return <img src={src} alt={alt} loading={loading} onError={onImgError} className={`w-full h-full object-cover ${className}`} />;
   }
 
   const scaleX = 100 / crop.width;
@@ -23,6 +23,7 @@ export const CroppedImage = ({ src, crop, alt = "", className = "" }) => {
     <img
       src={src}
       alt={alt}
+      loading={loading}
       onError={onImgError}
       className={`absolute ${className}`}
       style={{

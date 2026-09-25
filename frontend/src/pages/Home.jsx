@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, buildWaLink, INSTAGRAM_URL } from "@/lib/api";
+import { api, buildWaLink, formatINR, INSTAGRAM_URL } from "@/lib/api";
 import { useSite } from "@/context/SiteContext";
 import { ProductCard } from "@/components/ProductCard";
 import { CountdownTimer } from "@/components/CountdownTimer";
@@ -80,10 +80,13 @@ export const Home = () => {
   const { settings, campaign } = useSite();
   const [bestsellers, setBestsellers] = useState([]);
   const [newArrivals, setNewArrivals] = useState([]);
+  const [loadingBestsellers, setLoadingBestsellers] = useState(true);
   const [categoryTiles, setCategoryTiles] = useState(FALLBACK_CATEGORIES);
 
   useEffect(() => {
-    api.get("/products", { params: { is_bestseller: true } }).then((r) => setBestsellers(r.data));
+    api.get("/products", { params: { is_bestseller: true } })
+      .then((r) => setBestsellers(r.data))
+      .finally(() => setLoadingBestsellers(false));
     api.get("/products", { params: { is_new: true } }).then((r) => setNewArrivals(r.data));
     api
       .get("/categories")
@@ -130,7 +133,7 @@ export const Home = () => {
       {/* HERO */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0">
-          <CroppedImage src={heroImage} crop={hero?.image_crop} alt="Collection" />
+          <CroppedImage src={heroImage} crop={hero?.image_crop} alt="Collection" loading="eager" />
           <div className="absolute inset-0 bg-gradient-to-b from-[#2A2E30]/70 via-[#2A2E30]/40 to-[#2A2E30]/85" />
         </div>
         <div className="mandala-overlay" style={{ opacity: 0.08 }} />
@@ -261,9 +264,13 @@ export const Home = () => {
           </Link>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8">
-          {bestsellers.slice(0, 8).map((p, i) => (
-            <ProductCard key={p.id} product={p} index={i} />
-          ))}
+          {loadingBestsellers
+            ? Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="aspect-[3/4] bg-[#DDD5C4] animate-pulse rounded-sm" />
+              ))
+            : bestsellers.slice(0, 8).map((p, i) => (
+                <ProductCard key={p.id} product={p} index={i} />
+              ))}
         </div>
       </section>
 
@@ -294,13 +301,14 @@ export const Home = () => {
                 >
                   <div className="relative aspect-[3/4] overflow-hidden bg-[#3E4245]">
                     <img
-                      src={p.images[0]}
+                      src={p.images?.[0]}
                       alt={p.name}
+                      loading="lazy"
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                     />
                   </div>
                   <h4 className="font-display text-lg mt-3">{p.name}</h4>
-                  <p className="text-sm text-[#B58D3E]">₹{p.price.toLocaleString("en-IN")}</p>
+                  <p className="text-sm text-[#B58D3E]">{formatINR(p.price)}</p>
                 </Link>
               ))}
             </div>

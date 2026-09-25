@@ -83,7 +83,7 @@ export const SearchBar = ({ mobile = false, onNavigate }) => {
 
       {(mobile || open) && (
         <div className={mobile ? "w-full" : "absolute right-0 top-1/2 -translate-y-1/2 z-50"}>
-          <div className={`flex items-center gap-2 bg-[#E8E3D7] border border-[#8B9A9F]/40 rounded-sm px-3 py-2 ${mobile ? "w-full" : "w-64 sm:w-80"}`}>
+          <div className={`flex items-center gap-2 bg-[#E8E3D7] border border-[#8B9A9F]/40 rounded-sm px-3 py-2 ${mobile ? "w-full" : "w-64 sm:w-80 max-w-[calc(100vw-2rem)]"}`}>
             <Search size={16} className="text-[#6E7B85] shrink-0" />
             <input
               ref={inputRef}
@@ -106,7 +106,7 @@ export const SearchBar = ({ mobile = false, onNavigate }) => {
           {query.trim() && (
             <div
               data-testid="header-search-results"
-              className="mt-1 bg-[#E8E3D7] border border-[#8B9A9F]/30 rounded-sm shadow-lg max-h-96 overflow-y-auto"
+              className={`mt-1 bg-[#E8E3D7] border border-[#8B9A9F]/30 rounded-sm shadow-lg max-h-96 overflow-y-auto ${mobile ? "" : "w-64 sm:w-80 max-w-[calc(100vw-2rem)]"}`}
             >
               {results.length === 0 && !loading ? (
                 <p className="px-4 py-4 text-sm text-[#6E7B85]">No products found for "{query.trim()}"</p>

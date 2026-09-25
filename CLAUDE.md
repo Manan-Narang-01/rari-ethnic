@@ -52,7 +52,12 @@ Emergent's cloud when deployed there; the database itself is now a standalone Po
 
 ## Conventions
 - Match existing style: functional components, `@/` import alias (configured in `craco.config.js`),
-  Tailwind with the brand palette (`#A0684E`, `#2A2E30`, `#E8E3D7`, `#B58D3E`; festive: `#3E0714`/`#F4C842`).
+  Tailwind with the brand palette. Primary: `#A0684E` (terracotta/CTA), `#2A2E30` (near-black text),
+  `#E8E3D7` (cream background), `#B58D3E` (gold accent); festive: `#3E0714`/`#F4C842`. Secondary
+  (used consistently for muted text/borders/status pills, not one-off): `#DDD5C4` (panel bg),
+  `#6E7B85`/`#8B9A9F` (muted text/borders), `#7B6E5A`, `#A05B6A`, `#1E3A5F`, `#185D64`, `#7E1F35`
+  (status colors), `#25D366` (WhatsApp brand green). Always pull from this set — no default Tailwind
+  colors (`text-blue-500` etc.) outside vendored shadcn primitives.
 - Admin form primitives (`Card`, `Field`, `ImageField`, `UploadInline`) are exported from
   `pages/admin/AdminSettings.jsx` — reuse them in new admin pages.
 - `data-testid` attributes are used throughout for testing — preserve/add them.

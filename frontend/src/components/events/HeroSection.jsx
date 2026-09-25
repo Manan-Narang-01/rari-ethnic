@@ -17,7 +17,7 @@ export const HeroSection = ({ config, theme, campaign }) => {
   return (
     <section className="relative overflow-hidden">
       <div className="absolute inset-0">
-        <CroppedImage src={heroImage} crop={config.image_crop} alt={config.title || config.eyebrow || ""} className={t.festive ? "opacity-55" : "opacity-30"} />
+        <CroppedImage src={heroImage} crop={config.image_crop} alt={config.title || config.eyebrow || ""} className={t.festive ? "opacity-55" : "opacity-30"} loading="eager" />
         {t.festive ? (
           <>
             <div className="absolute inset-0 bg-gradient-to-b from-[#3E0714]/85 via-[#5A1424]/75 to-[#3E0714]" />

@@ -18,17 +18,38 @@ export const CartProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    // A private/incognito window (Safari especially) or a full storage quota
+    // can make setItem throw synchronously -- uncaught, that would blow up
+    // the render commit on every single cart mutation (add/remove/qty
+    // change), since this effect re-runs on every `items` change.
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    } catch (e) {
+      /* ignore -- cart still works for the rest of this session, it just
+         won't survive a reload */
+    }
   }, [items]);
 
+  // Stock is cached on the cart line at add-time (like price/name/image
+  // already were) so quantity can be capped without an extra API round-trip.
+  // It's a snapshot, not a live guarantee -- POST /api/orders re-validates
+  // and atomically decrements real stock server-side (see OrderService),
+  // which is the actual authoritative check; this is just to stop the UI
+  // from letting someone dial in an obviously-oversold quantity.
   const addItem = (product, size, quantity = 1) => {
+    const stock = typeof product.stock === "number" ? product.stock : Infinity;
+    let capped = false;
+    let addedQuantity = quantity;
     setItems((prev) => {
       const key = `${product.id}_${size || "one"}`;
       const existing = prev.find((i) => i.key === key);
+      const currentQty = existing ? existing.quantity : 0;
+      const nextQty = Math.min(currentQty + quantity, stock);
+      addedQuantity = nextQty - currentQty;
+      capped = nextQty < currentQty + quantity;
+      if (nextQty <= 0) return prev; // already at/over stock -- nothing to add
       if (existing) {
-        return prev.map((i) =>
-          i.key === key ? { ...i, quantity: i.quantity + quantity } : i
-        );
+        return prev.map((i) => (i.key === key ? { ...i, quantity: nextQty, stock } : i));
       }
       return [
         ...prev,
@@ -40,20 +61,24 @@ export const CartProvider = ({ children }) => {
           price: product.price,
           image: product.images?.[0],
           size: size || null,
-          quantity,
+          quantity: nextQty,
+          stock,
           shipping_enabled: product.shipping_enabled || false,
           shipping_charge: product.shipping_charge || 0,
         },
       ];
     });
     setIsOpen(true);
+    return { addedQuantity, capped };
   };
 
   const removeItem = (key) => setItems((prev) => prev.filter((i) => i.key !== key));
 
   const updateQty = (key, quantity) => {
     if (quantity < 1) return removeItem(key);
-    setItems((prev) => prev.map((i) => (i.key === key ? { ...i, quantity } : i)));
+    setItems((prev) =>
+      prev.map((i) => (i.key === key ? { ...i, quantity: Math.min(quantity, i.stock ?? Infinity) } : i))
+    );
   };
 
   const clear = () => setItems([]);

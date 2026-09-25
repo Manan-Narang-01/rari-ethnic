@@ -1,4 +1,5 @@
 import "@/App.css";
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { SiteProvider } from "@/context/SiteContext";
@@ -21,18 +22,29 @@ import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import Account from "@/pages/Account";
 import NotFound from "@/pages/NotFound";
-import AdminLayout from "@/pages/admin/AdminLayout";
-import AdminProducts from "@/pages/admin/AdminProducts";
-import AdminProductForm from "@/pages/admin/AdminProductForm";
-import AdminCategories from "@/pages/admin/AdminCategories";
-import AdminCategoryForm from "@/pages/admin/AdminCategoryForm";
-import AdminOrders from "@/pages/admin/AdminOrders";
-import AdminExchanges from "@/pages/admin/AdminExchanges";
-import AdminSettings from "@/pages/admin/AdminSettings";
-import AdminCampaigns from "@/pages/admin/AdminCampaigns";
-import AdminCampaignForm from "@/pages/admin/AdminCampaignForm";
-import AdminCampaignLogs from "@/pages/admin/AdminCampaignLogs";
-import AdminIntegrations from "@/pages/admin/AdminIntegrations";
+
+// Lazy-loaded as one chunk: the admin panel (drag-and-drop page builder,
+// image cropper) pulls in @dnd-kit and react-easy-crop, which the ~95% of
+// visitors who never touch /admin shouldn't have to download. React Router
+// only renders these once a matching /admin/* route is actually visited.
+const AdminLayout = lazy(() => import("@/pages/admin/AdminLayout"));
+const AdminProducts = lazy(() => import("@/pages/admin/AdminProducts"));
+const AdminProductForm = lazy(() => import("@/pages/admin/AdminProductForm"));
+const AdminCategories = lazy(() => import("@/pages/admin/AdminCategories"));
+const AdminCategoryForm = lazy(() => import("@/pages/admin/AdminCategoryForm"));
+const AdminOrders = lazy(() => import("@/pages/admin/AdminOrders"));
+const AdminExchanges = lazy(() => import("@/pages/admin/AdminExchanges"));
+const AdminSettings = lazy(() => import("@/pages/admin/AdminSettings"));
+const AdminCampaigns = lazy(() => import("@/pages/admin/AdminCampaigns"));
+const AdminCampaignForm = lazy(() => import("@/pages/admin/AdminCampaignForm"));
+const AdminCampaignLogs = lazy(() => import("@/pages/admin/AdminCampaignLogs"));
+const AdminIntegrations = lazy(() => import("@/pages/admin/AdminIntegrations"));
+
+const AdminFallback = () => (
+  <div className="min-h-screen flex items-center justify-center bg-[#E8E3D7] text-[#6E7B85]">
+    Loading…
+  </div>
+);
 
 function App() {
   return (
@@ -66,7 +78,14 @@ function App() {
                 {/* Admin — single login page lives at /login; this is a soft
                     redirect for anyone with the old URL bookmarked. */}
                 <Route path="/admin/login" element={<Navigate to="/login" replace />} />
-                <Route path="/admin" element={<AdminLayout />}>
+                <Route
+                  path="/admin"
+                  element={
+                    <Suspense fallback={<AdminFallback />}>
+                      <AdminLayout />
+                    </Suspense>
+                  }
+                >
                   <Route index element={<AdminProducts />} />
                   <Route path="products/new" element={<AdminProductForm mode="create" />} />
                   <Route path="products/:id/edit" element={<AdminProductForm mode="edit" />} />

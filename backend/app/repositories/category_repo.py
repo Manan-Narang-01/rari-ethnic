@@ -38,6 +38,17 @@ class CategoryRepository:
             return row_to_dict(row)
 
     @classmethod
+    async def keys_exist(cls, keys: list) -> set:
+        """Batch existence check -- returns the subset of `keys` that exist.
+        Used to validate a product's category list in one query instead of
+        one get_by_key() round-trip per category."""
+        if not keys:
+            return set()
+        async with get_session() as session:
+            rows = (await session.scalars(select(CategoryRow.key).where(CategoryRow.key.in_(keys)))).all()
+            return set(rows)
+
+    @classmethod
     async def get_by_id(cls, category_id: str) -> dict:
         async with get_session() as session:
             row = await session.get(CategoryRow, category_id)

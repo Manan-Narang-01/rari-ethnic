@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import Optional
 
 from fastapi import HTTPException, status
@@ -20,17 +21,44 @@ class OrderService:
         if not payload.items:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cart is empty")
 
+        # Batch-fetched once instead of one get_by_id() round-trip per line
+        # item -- checkout is the most latency-sensitive path in the app.
+        product_ids = list({item.product_id for item in payload.items})
+        products_by_id = await ProductRepository.get_by_ids(product_ids)
+
+        # Aggregated per product (not per line item) so ordering the same
+        # product in two sizes is checked against its combined demand, not
+        # validated against stock twice independently.
+        requested_qty: dict = defaultdict(int)
+        for item in payload.items:
+            requested_qty[item.product_id] += item.quantity
+
         resolved_items: list[OrderItem] = []
         subtotal = 0
         shipping_surcharge = 0
         has_shipping_override = False
 
         for item in payload.items:
-            product = await ProductRepository.get_by_id(item.product_id)
+            product = products_by_id.get(item.product_id)
+            # `detail` is a small object (not a plain string) for these three
+            # rejection cases specifically, carrying the offending
+            # product_id(s) alongside the message -- Checkout.jsx uses it to
+            # remove exactly that cart item so a retry isn't stuck failing
+            # against the same stale line forever. Every other error path in
+            # this app still returns a plain string detail; this endpoint's
+            # frontend caller is written to handle both shapes.
             if not product or not product.get("is_active", True):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"'{item.name}' is no longer available",
+                    detail={"message": f"'{item.name}' is no longer available", "product_ids": [item.product_id]},
+                )
+            if requested_qty[item.product_id] > product.get("stock", 0):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={
+                        "message": f"Only {product.get('stock', 0)} left of '{product['name']}' -- please update your cart",
+                        "product_ids": [item.product_id],
+                    },
                 )
             price = product["price"]
             subtotal += price * item.quantity
@@ -47,6 +75,19 @@ class OrderService:
                 size=item.size,
                 image=(product.get("images") or [None])[0],
             ))
+
+        # Re-validated here atomically (compare-and-swap per product, one
+        # transaction) right before the order is created -- the check above
+        # reads a snapshot that a concurrent order could invalidate between
+        # that read and this write, so this is the actual authoritative gate
+        # against overselling, not just a nicer error message.
+        failed_ids = await ProductRepository.decrement_stock_atomic(dict(requested_qty))
+        if failed_ids:
+            names = ", ".join(products_by_id[pid]["name"] for pid in failed_ids if pid in products_by_id)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"message": f"Sorry, {names} just sold out -- please update your cart", "product_ids": failed_ids},
+            )
 
         # Shipping is opt-in per product -- no site-wide default fee applies.
         # An order with no shipping-enabled items always ships free.

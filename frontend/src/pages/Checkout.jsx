@@ -27,7 +27,7 @@ const loadRazorpayScript = () => {
 };
 
 export const Checkout = () => {
-  const { items, subtotal, shipping, total, clear } = useCart();
+  const { items, subtotal, shipping, total, clear, removeItem } = useCart();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
@@ -177,7 +177,24 @@ export const Checkout = () => {
       clear();
       navigate(`/order/${orderNumber}`);
     } catch (e) {
-      toast.error("Could not place order. Try again.");
+      // Order creation returns a structured {message, product_ids} detail
+      // for "no longer available" / "sold out" rejections specifically (see
+      // OrderService.create) so the offending line(s) can be dropped here --
+      // without this, "Try again" would fail identically forever since the
+      // same stale cart item keeps causing the same rejection.
+      const detail = e.response?.data?.detail;
+      if (detail && typeof detail === "object" && detail.message) {
+        toast.error(detail.message);
+        if (Array.isArray(detail.product_ids)) {
+          items
+            .filter((it) => detail.product_ids.includes(it.product_id))
+            .forEach((it) => removeItem(it.key));
+        }
+      } else if (typeof detail === "string") {
+        toast.error(detail);
+      } else {
+        toast.error("Could not place order. Try again.");
+      }
       setSubmitting(false);
     }
   };

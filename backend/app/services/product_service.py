@@ -46,6 +46,7 @@ class ProductService:
 
     @staticmethod
     async def _check_categories(category_keys: list) -> None:
-        unknown = [k for k in category_keys if not await CategoryRepository.get_by_key(k)]
+        existing = await CategoryRepository.keys_exist(category_keys)
+        unknown = [k for k in category_keys if k not in existing]
         if unknown:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unknown categor{'y' if len(unknown) == 1 else 'ies'}: {', '.join(unknown)}")

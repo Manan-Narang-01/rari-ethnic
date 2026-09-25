@@ -89,8 +89,9 @@ export const CartDrawer = () => {
                         <span className="w-7 text-center text-sm">{it.quantity}</span>
                         <button
                           onClick={() => updateQty(it.key, it.quantity + 1)}
+                          disabled={it.quantity >= (it.stock ?? Infinity)}
                           data-testid={`cart-increase-${it.slug}`}
-                          className="w-7 h-7 flex items-center justify-center hover:bg-[#DDD5C4]"
+                          className="w-7 h-7 flex items-center justify-center hover:bg-[#DDD5C4] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                         >
                           <Plus size={12} />
                         </button>

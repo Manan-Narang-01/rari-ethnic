@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Link, NavLink, Outlet, useNavigate, Navigate } from "react-router-dom";
 import { useAuth, STAFF_ROLES, isStaffRole } from "@/context/AuthContext";
 import { LogOut, Package, ShoppingBag, Plus, Home, Settings, CalendarClock, Tags, RefreshCw, CreditCard, History } from "lucide-react";
@@ -83,7 +84,12 @@ export const AdminLayout = () => {
 
       <main className="flex-1 min-w-0">
         <div className="p-6 md:p-10">
-          <Outlet />
+          {/* Each admin page is its own lazy chunk (see App.js) -- this keeps
+              the sidebar mounted while switching between them instead of the
+              whole layout flashing to a loading screen on every nav click. */}
+          <Suspense fallback={<div className="text-[#6E7B85]">Loading…</div>}>
+            <Outlet />
+          </Suspense>
         </div>
       </main>
 

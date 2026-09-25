@@ -59,6 +59,58 @@ class ProductRepository:
             return row_to_dict(row)
 
     @classmethod
+    async def get_by_ids(cls, ids: list) -> dict:
+        """Batch lookup keyed by id -- used by order creation so pricing a
+        cart with N distinct products is one query instead of N sequential
+        get_by_id round-trips."""
+        if not ids:
+            return {}
+        async with get_session() as session:
+            rows = (await session.scalars(select(ProductRow).where(ProductRow.id.in_(ids)))).all()
+            return {r.id: row_to_dict(r) for r in rows}
+
+    @classmethod
+    async def decrement_stock_atomic(cls, quantities: dict) -> list:
+        """Decrements stock for every {product_id: qty} in one transaction --
+        all succeed or none do. Each decrement is its own compare-and-swap
+        (`WHERE stock >= qty`) so two concurrent orders racing for the last
+        units can't drive stock negative; if any one of them loses that race,
+        the whole transaction is rolled back (no partial decrements survive)
+        and the ids that failed are returned so the caller can reject the
+        order with a clear "no longer available in that quantity" message."""
+        async with get_session() as session:
+            failed = []
+            for product_id, qty in quantities.items():
+                result = await session.execute(
+                    update(ProductRow)
+                    .where(ProductRow.id == product_id, ProductRow.stock >= qty)
+                    .values(stock=ProductRow.stock - qty)
+                )
+                if result.rowcount == 0:
+                    failed.append(product_id)
+            if failed:
+                await session.rollback()
+                return failed
+            await session.commit()
+            return []
+
+    @classmethod
+    async def restock(cls, quantities: dict) -> None:
+        """Increments stock back for every {product_id: qty} -- used when an
+        order that had already decremented stock (see decrement_stock_atomic)
+        is cancelled, so those units become orderable again. Best-effort: a
+        product deleted since the order was placed has nothing to restock and
+        is silently skipped."""
+        if not quantities:
+            return
+        async with get_session() as session:
+            for product_id, qty in quantities.items():
+                await session.execute(
+                    update(ProductRow).where(ProductRow.id == product_id).values(stock=ProductRow.stock + qty)
+                )
+            await session.commit()
+
+    @classmethod
     async def slug_exists(cls, slug: str, *, exclude_id: str = None) -> bool:
         stmt = select(ProductRow.id).where(ProductRow.slug == slug)
         if exclude_id:

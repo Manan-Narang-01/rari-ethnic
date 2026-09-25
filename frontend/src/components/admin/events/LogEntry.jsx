@@ -7,9 +7,33 @@ const ACTION_META = {
   deleted: { label: "Deleted", icon: Trash2, cls: "bg-[#7E1F35]/15 text-[#7E1F35]" },
 };
 
+// `sections` (the page-builder's block list) changes as one whole-array
+// field even for a one-word edit inside a single block (see campaign_service
+// `_diff`), so dumping the raw JSON here was an unreadable wall of nested
+// objects for the single most common kind of edit in this admin. A one-line
+// summary up front, with the full JSON still available on demand, covers
+// both "what changed at a glance" and "show me exactly what changed".
+const summarizeArray = (arr) => {
+  if (arr.length === 0) return "(empty)";
+  if (arr[0] && typeof arr[0] === "object" && "type" in arr[0]) {
+    return `${arr.length} section${arr.length > 1 ? "s" : ""}: ${arr.map((s) => s.type).join(", ")}`;
+  }
+  return `${arr.length} item${arr.length > 1 ? "s" : ""}`;
+};
+
 const formatValue = (v) => {
   if (v === null || v === undefined) return <span className="text-[#8B9A9F] italic">empty</span>;
   if (typeof v === "boolean") return v ? "true" : "false";
+  if (Array.isArray(v)) {
+    return (
+      <details>
+        <summary className="cursor-pointer text-[#2A2E30] select-none">{summarizeArray(v)}</summary>
+        <pre className="text-[11px] bg-[#2A2E30]/5 rounded-sm p-2 mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words">
+          {JSON.stringify(v, null, 2)}
+        </pre>
+      </details>
+    );
+  }
   if (typeof v === "object") {
     return (
       <pre className="text-[11px] bg-[#2A2E30]/5 rounded-sm p-2 max-h-40 overflow-auto whitespace-pre-wrap break-words">

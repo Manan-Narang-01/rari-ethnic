@@ -21,7 +21,9 @@ export const NavratriLanding = () => {
     }
   }, [campaign?.theme]);
 
-  if (loading) return null;
+  if (loading) {
+    return <div className="container-x py-24 text-center text-[#6E7B85]">Loading…</div>;
+  }
   if (!campaign) return <Navigate to="/" replace />;
 
   const t = eventTheme(campaign.theme);

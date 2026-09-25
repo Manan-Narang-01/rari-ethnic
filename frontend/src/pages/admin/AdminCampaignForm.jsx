@@ -98,7 +98,7 @@ export const AdminCampaignForm = ({ mode = "create" }) => {
         <Card title="Basics">
           <div className="grid md:grid-cols-2 gap-5">
             <Field label="Event name (e.g. Navratri 2026)" value={form.name} onChange={(v) => set("name", v)} />
-            <Field label="Landing slug (page: /navratri)" value={form.slug} onChange={(v) => set("slug", v)} />
+            <Field label="Internal reference slug (the live page is always /navratri)" value={form.slug} onChange={(v) => set("slug", v)} />
             <div>
               <label className="label-caps">Theme</label>
               <select value={form.theme} onChange={(e) => set("theme", e.target.value)} className="w-full mt-1 border-b border-[#8B9A9F]/40 bg-transparent py-2 outline-none focus:border-[#A0684E]">

@@ -45,13 +45,21 @@ export const ProductDetail = () => {
     );
   }
 
+  const outOfStock = product.stock <= 0;
+
   const onAdd = () => {
     if (product.sizes?.length > 0 && !size) {
       toast.error("Please pick a size");
       return;
     }
-    addItem(product, size);
-    toast.success("Added to cart");
+    const { addedQuantity, capped } = addItem(product, size);
+    if (addedQuantity <= 0) {
+      toast.error("You already have the maximum available quantity in your cart");
+    } else if (capped) {
+      toast.success(`Added to cart — only ${product.stock} in stock, so that's the most we could add`);
+    } else {
+      toast.success("Added to cart");
+    }
   };
 
   const onBuyNow = () => {
@@ -59,7 +67,11 @@ export const ProductDetail = () => {
       toast.error("Please pick a size");
       return;
     }
-    addItem(product, size);
+    const { addedQuantity } = addItem(product, size);
+    if (addedQuantity <= 0) {
+      toast.error("You already have the maximum available quantity in your cart");
+      return;
+    }
     setIsOpen(false);
     navigate("/checkout");
   };
@@ -236,16 +248,18 @@ export const ProductDetail = () => {
               <button
                 data-testid="add-to-cart-button"
                 onClick={onAdd}
-                className="w-full bg-[#A0684E] text-[#E8E3D7] py-4 rounded-sm text-sm uppercase tracking-widest hover:bg-[#8C4A3B] transition-colors"
+                disabled={outOfStock}
+                className="w-full bg-[#A0684E] text-[#E8E3D7] py-4 rounded-sm text-sm uppercase tracking-widest hover:bg-[#8C4A3B] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#A0684E]"
               >
-                Add to Cart · {formatINR(product.price)}
+                {outOfStock ? "Sold Out" : `Add to Cart · ${formatINR(product.price)}`}
               </button>
               <button
                 data-testid="buy-now-button"
                 onClick={onBuyNow}
-                className="w-full bg-[#2A2E30] text-[#E8E3D7] py-4 rounded-sm text-sm uppercase tracking-widest hover:bg-[#1E2122] transition-colors"
+                disabled={outOfStock}
+                className="w-full bg-[#2A2E30] text-[#E8E3D7] py-4 rounded-sm text-sm uppercase tracking-widest hover:bg-[#1E2122] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#2A2E30]"
               >
-                Buy Now
+                {outOfStock ? "Sold Out" : "Buy Now"}
               </button>
               <a
                 href={buildWaLink(waMsg)}
