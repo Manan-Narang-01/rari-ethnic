@@ -62,5 +62,14 @@ class Settings:
 
     credentials_encryption_key: str = os.environ["CREDENTIALS_ENCRYPTION_KEY"]
 
+    # Stock is reserved (decremented) at order creation, not at payment
+    # confirmation -- see OrderService.create -- so an abandoned Razorpay
+    # checkout (closed tab, failed OTP, changed their mind) would otherwise
+    # lock that stock forever. A background sweep (app/main.py, wired to
+    # OrderService.expire_stale_pending_payments) auto-cancels any order
+    # still `pending_payment` past this many minutes and releases its stock.
+    pending_payment_timeout_minutes: int = int(os.environ.get("PENDING_PAYMENT_TIMEOUT_MINUTES", "30"))
+    pending_payment_sweep_interval_seconds: int = int(os.environ.get("PENDING_PAYMENT_SWEEP_INTERVAL_SECONDS", "300"))
+
 
 settings = Settings()

@@ -79,6 +79,7 @@ _STATUS_COPY = {
     "dispatched": "Your order is on its way!",
     "delivered": "Your order has been delivered.",
     "cancelled": "Your order has been cancelled.",
+    "refunded": "Your payment has been refunded.",
 }
 
 

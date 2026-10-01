@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from fastapi import FastAPI
@@ -22,6 +23,7 @@ from app.repositories.product_repo import ProductRepository
 from app.repositories.session_repo import SessionRepository
 from app.repositories.site_settings_repo import SiteSettingsRepository
 from app.repositories.user_repo import UserRepository
+from app.services.order_service import OrderService
 
 logging.basicConfig(
     level=logging.INFO,
@@ -64,6 +66,28 @@ async def security_headers(request, call_next):
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
     response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
     return response
+
+
+_pending_payment_expiry_task: asyncio.Task = None
+
+
+async def _pending_payment_expiry_loop():
+    """Runs OrderService.expire_stale_pending_payments on a fixed interval
+    for the lifetime of the process -- see PENDING_PAYMENT_TIMEOUT_MINUTES/
+    PENDING_PAYMENT_SWEEP_INTERVAL_SECONDS in app/config.py. A single-process
+    asyncio loop is enough at this app's current scale; if this backend ever
+    runs as multiple worker processes, every worker will redundantly run this
+    sweep (harmless -- each cancellation is a compare-and-swap, so only one
+    worker's update actually wins and restocks any given order -- just
+    wasted duplicate query work, not a correctness issue)."""
+    while True:
+        await asyncio.sleep(settings.pending_payment_sweep_interval_seconds)
+        try:
+            count = await OrderService.expire_stale_pending_payments()
+            if count:
+                logger.info("Auto-cancelled %d stale pending_payment order(s)", count)
+        except Exception as e:
+            logger.error("Pending-payment expiry sweep failed: %s", e)
 
 
 async def _seed_role(email: str, password: str, role: str) -> None:
@@ -152,7 +176,12 @@ async def startup_tasks():
     except Exception as e:
         logger.error("Integration catalog seed failed: %s", e)
 
+    global _pending_payment_expiry_task
+    _pending_payment_expiry_task = asyncio.create_task(_pending_payment_expiry_loop())
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    if _pending_payment_expiry_task is not None:
+        _pending_payment_expiry_task.cancel()
     await database.close()

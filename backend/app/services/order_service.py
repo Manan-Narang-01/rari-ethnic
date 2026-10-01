@@ -1,8 +1,10 @@
 from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import HTTPException, status
 
+from app.config import settings
 from app.models.order import Order, OrderCreate, OrderItem
 from app.repositories.order_repo import OrderRepository
 from app.repositories.product_repo import ProductRepository
@@ -137,8 +139,53 @@ class OrderService:
 
     @staticmethod
     async def notify_status_change(order_doc: dict, new_status: str) -> None:
-        """Customer-facing status update email (dispatched/delivered/cancelled)."""
-        if new_status not in ("dispatched", "delivered", "cancelled"):
+        """Customer-facing status update email (dispatched/delivered/cancelled/refunded)."""
+        if new_status not in ("dispatched", "delivered", "cancelled", "refunded"):
             return
         subject, html = order_status_email(order_doc, new_status)
         await EmailService.send(order_doc["email"], subject, html)
+
+    @staticmethod
+    async def restock_cancelled_order(order_doc: dict) -> None:
+        """Releases the stock reserved at order creation (see create()) back
+        into inventory. Shared by the admin's manual cancel action
+        (api/v1/admin_orders.py) and the automatic pending_payment expiry
+        sweep below, so both restock identically -- call this only after the
+        status transition into "cancelled" has already been won via
+        OrderRepository.update_status's compare-and-swap, so it can never run
+        twice for the same order."""
+        quantities: dict = defaultdict(int)
+        for item in order_doc["items"]:
+            quantities[item["product_id"]] += item["quantity"]
+        await ProductRepository.restock(dict(quantities))
+
+    @staticmethod
+    async def expire_stale_pending_payments() -> int:
+        """Auto-cancels Razorpay orders that have sat unpaid past
+        PENDING_PAYMENT_TIMEOUT_MINUTES and releases their reserved stock.
+        Without this, an abandoned payment attempt (closed tab, failed OTP,
+        changed their mind) reserves stock forever, since stock is
+        decremented at order creation rather than at payment confirmation
+        (see create()) -- a slow stock leak that shows up as false
+        stockouts on real inventory. Called on a background loop (see
+        app/main.py).
+
+        Each cancellation is a compare-and-swap (`expected_status=
+        "pending_payment"`) so this can never race against an admin
+        manually cancelling the same order, or against the payment actually
+        completing (RazorpayService.verify_payment) in the same instant --
+        whichever transition wins the database row is the only one that
+        restocks."""
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=settings.pending_payment_timeout_minutes)
+        stale_orders = await OrderRepository.list_stale_pending_payment(cutoff)
+        expired_count = 0
+        for order in stale_orders:
+            won = await OrderRepository.update_status(
+                order["order_number"], "cancelled", expected_status="pending_payment",
+            )
+            if not won:
+                continue  # already moved on (paid, or cancelled elsewhere) -- don't touch stock
+            await OrderService.restock_cancelled_order(order)
+            await OrderService.notify_status_change(order, "cancelled")
+            expired_count += 1
+        return expired_count

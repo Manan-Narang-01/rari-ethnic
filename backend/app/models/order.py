@@ -44,7 +44,7 @@ class Order(OrderCreate):
     order_number: str = Field(default_factory=lambda: "RE" + uuid.uuid4().hex[:8].upper())
     # Set when the request carried a valid access token; null for guest checkout.
     user_id: Optional[str] = None
-    # pending_payment | confirmed | dispatched | delivered | cancelled.
+    # pending_payment | confirmed | dispatched | delivered | cancelled | refunded.
     # Online-payment orders start at pending_payment and only move to
     # confirmed once RazorpayService.verify_payment succeeds server-side --
     # COD orders skip straight to confirmed (see OrderService.create).
@@ -52,6 +52,12 @@ class Order(OrderCreate):
     delivered_at: Optional[datetime] = None
     razorpay_order_id: Optional[str] = None
     razorpay_payment_id: Optional[str] = None
+    # Set only by the system when a genuinely-valid payment is confirmed
+    # after its order was already auto-cancelled by the pending_payment
+    # expiry sweep (see api/v1/payments.py verify_razorpay_payment) -- never
+    # settable through the normal admin status-update endpoint, since that
+    # would let "refunded" be claimed without a real refund ever happening.
+    razorpay_refund_id: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -65,7 +71,11 @@ class RazorpayVerify(BaseModel):
     razorpay_signature: str
 
 
-VALID_ORDER_STATUSES = {"pending_payment", "confirmed", "dispatched", "delivered", "cancelled"}
+# "refunded" is a system-only terminal status (see razorpay_refund_id above)
+# -- deliberately left out of ORDER_STATUS_TRANSITIONS below, so it can never
+# be reached through the admin's generic status-update endpoint, only through
+# the verified-refund code path in api/v1/payments.py.
+VALID_ORDER_STATUSES = {"pending_payment", "confirmed", "dispatched", "delivered", "cancelled", "refunded"}
 
 # Forward-only state machine -- delivered/cancelled are terminal, and a status
 # can only move to one of these from its current value (same-status is always
@@ -79,4 +89,5 @@ ORDER_STATUS_TRANSITIONS = {
     "dispatched": {"delivered", "cancelled"},
     "delivered": set(),
     "cancelled": set(),
+    "refunded": set(),
 }

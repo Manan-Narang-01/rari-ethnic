@@ -52,6 +52,31 @@ class RazorpayService:
         return {"razorpay_order_id": data["id"], "key_id": key_id, "amount": data["amount"], "currency": data["currency"]}
 
     @staticmethod
+    async def refund_payment(payment_id: str) -> dict:
+        """Issues a full refund for a captured payment. Used when a payment's
+        signature verifies as genuine but its order was already auto-
+        cancelled by the pending_payment expiry sweep (see
+        api/v1/payments.py) -- the money moved inside the Razorpay checkout
+        widget before our server ever saw it, so the only correct response
+        to a now-closed order is to hand it straight back, not just reject
+        the request and leave the customer out of pocket."""
+        key_id, key_secret = await RazorpayService._get_credentials()
+        try:
+            resp = requests.post(
+                f"{RAZORPAY_API_BASE}/payments/{payment_id}/refund",
+                auth=(key_id, key_secret),
+                json={"speed": "optimum"},
+                timeout=15,
+            )
+        except requests.RequestException as e:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Could not reach Razorpay to issue refund: {e}")
+
+        if resp.status_code >= 400:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Razorpay refund failed: {resp.text}")
+
+        return resp.json()
+
+    @staticmethod
     async def verify_signature(razorpay_order_id: str, razorpay_payment_id: str, razorpay_signature: str) -> bool:
         """Razorpay signs order_id|payment_id with the merchant's key_secret
         (HMAC-SHA256); this is the only trustworthy proof a payment actually

@@ -4,6 +4,14 @@ import { MessageCircle, Phone, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
 const STATUS = ["pending_payment", "confirmed", "dispatched", "delivered", "cancelled"];
+// "refunded" is a system-only status (see backend ORDER_STATUS_TRANSITIONS) --
+// set automatically when a Razorpay payment is confirmed after its order was
+// already auto-cancelled by the pending_payment expiry sweep, never by an
+// admin action. It's shown here (summary + pill) but deliberately left out
+// of STATUS above, so no dead "Refunded" button appears in the per-order
+// action row -- clicking one would always fail, since no status transitions
+// into "refunded" through the normal update endpoint.
+const SUMMARY_STATUS = [...STATUS, "refunded"];
 const statusLabel = (s) => (s === "pending_payment" ? "Awaiting payment" : s);
 
 // Mirrors the backend's ORDER_STATUS_TRANSITIONS (app/models/order.py) --
@@ -69,8 +77,8 @@ export const AdminOrders = () => {
       </div>
 
       {/* Status summary */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-        {STATUS.map((s) => (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        {SUMMARY_STATUS.map((s) => (
           <div key={s} className="bg-[#DDD5C4]/40 border border-[#8B9A9F]/20 rounded-sm p-4">
             <div className="label-caps">{statusLabel(s)}</div>
             <div className="font-display text-2xl mt-1">{totals[s] || 0}</div>
@@ -238,6 +246,7 @@ const StatusPill = ({ status }) => {
     dispatched: "bg-[#7B6E5A]/25 text-[#5A4E3E]",
     delivered: "bg-[#7B6E5A]/40 text-[#3E4245]",
     cancelled: "bg-[#A05B6A]/20 text-[#7A3A48]",
+    refunded: "bg-[#1E3A5F]/20 text-[#1E3A5F]",
   };
   return (
     <span className={`text-[10px] uppercase tracking-widest px-2 py-1 rounded-sm ${map[status] || ""}`}>

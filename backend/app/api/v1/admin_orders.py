@@ -1,11 +1,8 @@
-from collections import defaultdict
-
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.deps import require_admin
 from app.models.order import ORDER_STATUS_TRANSITIONS, VALID_ORDER_STATUSES, Order, OrderStatusUpdate
 from app.repositories.order_repo import OrderRepository
-from app.repositories.product_repo import ProductRepository
 from app.services.order_service import OrderService
 
 router = APIRouter(prefix="/admin/orders", tags=["admin:orders"], dependencies=[Depends(require_admin)])
@@ -25,18 +22,24 @@ async def admin_update_order(order_number: str, payload: OrderStatusUpdate):
         raise HTTPException(status_code=404, detail="Order not found")
     if payload.status != existing["status"] and payload.status not in ORDER_STATUS_TRANSITIONS.get(existing["status"], set()):
         raise HTTPException(status_code=400, detail=f"Cannot move an order from '{existing['status']}' to '{payload.status}'")
-    if not await OrderRepository.update_status(order_number, payload.status):
+
+    is_new_cancellation = payload.status == "cancelled" and existing["status"] != "cancelled"
+    # On a cancellation specifically, this is a compare-and-swap keyed off
+    # the status this admin actually saw -- the automatic pending_payment
+    # expiry sweep (OrderService.expire_stale_pending_payments) could be
+    # cancelling this exact order at the same instant, and only whichever
+    # transition wins the row should restock (see restock_cancelled_order).
+    updated = await OrderRepository.update_status(
+        order_number, payload.status,
+        expected_status=existing["status"] if is_new_cancellation else None,
+    )
+    if not updated:
+        if is_new_cancellation:
+            raise HTTPException(status_code=409, detail="This order was just updated elsewhere -- please refresh and try again")
         raise HTTPException(status_code=404, detail="Order not found")
 
-    # Cancelling releases the stock that was decremented at order creation
-    # (see OrderService.create) back into inventory. Only fires on the
-    # transition INTO cancelled, not idempotently on every PATCH, so
-    # re-saving an already-cancelled order can't double-restock it.
-    if payload.status == "cancelled" and existing["status"] != "cancelled":
-        quantities = defaultdict(int)
-        for item in existing["items"]:
-            quantities[item["product_id"]] += item["quantity"]
-        await ProductRepository.restock(dict(quantities))
+    if is_new_cancellation:
+        await OrderService.restock_cancelled_order(existing)
 
     order = await OrderRepository.get_by_order_number(order_number)
     await OrderService.notify_status_change(order, payload.status)

@@ -54,16 +54,43 @@ class OrderRepository:
             return result.rowcount > 0
 
     @classmethod
-    async def update_status(cls, order_number: str, status: str) -> bool:
+    async def update_status(cls, order_number: str, status: str, *, expected_status: str = None, extra: dict = None) -> bool:
+        """When `expected_status` is given, this is an atomic compare-and-swap
+        (`WHERE status = expected_status`) rather than an unconditional write.
+        A caller that restocks products after a successful cancellation (see
+        OrderService.restock_cancelled_order) needs this: without it, an
+        admin manually cancelling an order at the same moment the automatic
+        pending_payment expiry sweep (OrderService.expire_stale_pending_payments)
+        cancels that same order could both see the transition as "theirs" and
+        both restock it, double-crediting inventory that was only ever
+        reserved once. `extra` sets additional columns (e.g. razorpay_refund_id)
+        in the same statement -- used so a caller that also triggers a real
+        side effect (issuing a refund) on a successful transition can't have
+        two concurrent calls both see themselves as the winner and both fire
+        that side effect (see verify_razorpay_payment)."""
         async with get_session() as session:
-            values = {"status": status}
+            values = {"status": status, **(extra or {})}
             if status == "delivered":
                 existing = await session.scalar(select(OrderRow.delivered_at).where(OrderRow.order_number == order_number))
                 if existing is None:
                     values["delivered_at"] = datetime.now(timezone.utc)
-            result = await session.execute(update(OrderRow).where(OrderRow.order_number == order_number).values(**values))
+            stmt = update(OrderRow).where(OrderRow.order_number == order_number)
+            if expected_status is not None:
+                stmt = stmt.where(OrderRow.status == expected_status)
+            result = await session.execute(stmt.values(**values))
             await session.commit()
             return result.rowcount > 0
+
+    @classmethod
+    async def list_stale_pending_payment(cls, older_than: datetime) -> list:
+        """Razorpay orders still awaiting payment confirmation from before
+        `older_than` -- candidates for OrderService.expire_stale_pending_payments
+        to auto-cancel and restock."""
+        async with get_session() as session:
+            rows = (await session.scalars(
+                select(OrderRow).where(OrderRow.status == "pending_payment", OrderRow.created_at < older_than)
+            )).all()
+            return [row_to_dict(r) for r in rows]
 
     @classmethod
     async def ensure_indexes(cls) -> None:
