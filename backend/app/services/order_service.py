@@ -11,6 +11,7 @@ from app.repositories.product_repo import ProductRepository
 from app.repositories.user_repo import UserRepository
 from app.services.email_service import EmailService
 from app.services.email_templates import admin_new_order_email, order_confirmed_email, order_status_email
+from app.services.razorpay_service import RazorpayService
 
 
 class OrderService:
@@ -189,3 +190,62 @@ class OrderService:
             await OrderService.notify_status_change(order, "cancelled")
             expired_count += 1
         return expired_count
+
+    @staticmethod
+    async def confirm_or_refund_payment(order: dict, razorpay_payment_id: str) -> dict:
+        """Given a Razorpay payment the caller has already proven genuine
+        (verified the client-side order/payment HMAC in /verify, or the
+        webhook HMAC in /webhooks/razorpay), confirms the order if it's
+        still open, or refunds the payment if the order was already closed
+        out from under it (most likely by expire_stale_pending_payments).
+        Shared by both call sites -- the client's own /verify callback, and
+        the payment.captured webhook that catches a payment whose browser
+        never got to call back at all (closed tab, crash, lost connection
+        right after paying) -- so a customer gets the same safe outcome
+        (confirmed order, or an automatic refund) regardless of which path
+        notices their payment first. Idempotent against Razorpay's
+        at-least-once webhook delivery and a client retry: an
+        already-"confirmed" order short-circuits, and every transition
+        below is a compare-and-swap, so a redelivered event can't confirm
+        or refund twice.
+
+        Returns {"outcome": "already_confirmed" | "confirmed" | "refunded"
+        | "already_handled"[, "refund_id": str]}."""
+        if order["status"] == "confirmed":
+            return {"outcome": "already_confirmed"}
+
+        if order["status"] == "pending_payment":
+            won = await OrderRepository.update_status(
+                order["order_number"], "confirmed", expected_status="pending_payment",
+            )
+            if not won:
+                # Lost the race (e.g. the expiry sweep cancelled it a moment
+                # ago) -- re-fetch and let the branch below do the right
+                # thing for whatever it became instead.
+                refreshed = await OrderRepository.get_by_order_number(order["order_number"])
+                return await OrderService.confirm_or_refund_payment(refreshed, razorpay_payment_id)
+            await OrderRepository.update_by_order_number(order["order_number"], {"razorpay_payment_id": razorpay_payment_id})
+            confirmed_order = await OrderRepository.get_by_order_number(order["order_number"])
+            await OrderService.notify_confirmed(confirmed_order)
+            return {"outcome": "confirmed"}
+
+        # Order already closed (cancelled by the expiry sweep, most likely)
+        # -- refund the payment we can now prove actually happened. See
+        # api/v1/payments.py's prior inline version of this same logic for
+        # the original reasoning on claim-before-refund ordering.
+        prior_status = order["status"]
+        won = await OrderRepository.update_status(order["order_number"], "refunded", expected_status=prior_status)
+        if not won:
+            return {"outcome": "already_handled"}
+        try:
+            refund = await RazorpayService.refund_payment(razorpay_payment_id)
+        except HTTPException:
+            await OrderRepository.update_status(order["order_number"], prior_status, expected_status="refunded")
+            raise
+        await OrderRepository.update_by_order_number(order["order_number"], {
+            "razorpay_payment_id": razorpay_payment_id,
+            "razorpay_refund_id": refund.get("id"),
+        })
+        refunded_order = await OrderRepository.get_by_order_number(order["order_number"])
+        await OrderService.notify_status_change(refunded_order, "refunded")
+        return {"outcome": "refunded", "refund_id": refund.get("id")}

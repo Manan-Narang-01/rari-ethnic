@@ -89,3 +89,22 @@ class RazorpayService:
             hashlib.sha256,
         ).hexdigest()
         return hmac.compare_digest(expected, razorpay_signature)
+
+    @staticmethod
+    async def verify_webhook_signature(raw_body: bytes, signature: str) -> bool:
+        """Razorpay signs the exact raw webhook request body (HMAC-SHA256)
+        with a separate "webhook secret" configured in their dashboard --
+        deliberately not the same secret as verify_signature's key_secret,
+        since this one is never sent to the browser at all. Must be computed
+        over the untouched raw bytes, not a re-serialized/re-parsed version
+        of the JSON, or the HMAC won't match even for a genuine request."""
+        if not signature:
+            return False
+        integration = await IntegrationRepository.get_by_provider("payment", "razorpay")
+        if not integration or not integration.get("is_enabled"):
+            return False
+        webhook_secret = decrypt(integration.get("credentials", {}).get("webhook_secret", ""))
+        if not webhook_secret:
+            return False
+        expected = hmac.new(webhook_secret.encode(), raw_body, hashlib.sha256).hexdigest()
+        return hmac.compare_digest(expected, signature)

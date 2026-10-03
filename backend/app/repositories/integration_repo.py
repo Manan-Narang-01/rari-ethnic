@@ -109,10 +109,28 @@ class IntegrationRepository:
 
     @classmethod
     async def backfill_defaults(cls, catalog: dict) -> None:
-        """No-op on Postgres -- this only ever migrated documents from before
-        `label`/`fields` were stored on the document itself. The Postgres
-        schema requires them from day one."""
-        pass
+        """Merges any field keys present in `catalog` but missing from an
+        already-seeded provider's stored `fields` list -- e.g. adding
+        Razorpay's `webhook_secret` field to an install whose razorpay row
+        was seeded before that field existed. Only ever appends; never
+        touches a Super Admin's own custom providers (not in `catalog`) or
+        reorders/removes anything already there."""
+        async with get_session() as session:
+            changed = False
+            for category, providers in catalog.items():
+                for provider, meta in providers.items():
+                    row = await session.scalar(
+                        select(IntegrationRow).where(IntegrationRow.category == category, IntegrationRow.provider == provider)
+                    )
+                    if not row:
+                        continue
+                    existing_keys = {f["key"] for f in (row.fields or [])}
+                    missing = [f for f in meta["fields"] if f["key"] not in existing_keys]
+                    if missing:
+                        row.fields = [*(row.fields or []), *missing]
+                        changed = True
+            if changed:
+                await session.commit()
 
     @classmethod
     async def ensure_indexes(cls) -> None:

@@ -19,6 +19,11 @@ PROVIDER_CATALOG = {
         "razorpay": {"label": "Razorpay", "fields": [
             {"key": "key_id", "label": "Key ID"},
             {"key": "key_secret", "label": "Key secret"},
+            # Set when registering a webhook (for payment.captured) in the
+            # Razorpay dashboard pointed at /api/webhooks/razorpay -- must
+            # match the secret entered there exactly. See
+            # RazorpayService.verify_webhook_signature.
+            {"key": "webhook_secret", "label": "Webhook secret"},
         ]},
         "paypal": {"label": "PayPal", "fields": [
             {"key": "client_id", "label": "Client ID"},

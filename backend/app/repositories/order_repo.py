@@ -30,6 +30,14 @@ class OrderRepository:
             return row_to_dict(row)
 
     @classmethod
+    async def get_by_razorpay_order_id(cls, razorpay_order_id: str) -> dict:
+        """Looked up by the Razorpay `payment.captured` webhook, which only
+        knows Razorpay's own order id -- see api/v1/payments.py."""
+        async with get_session() as session:
+            row = await session.scalar(select(OrderRow).where(OrderRow.razorpay_order_id == razorpay_order_id))
+            return row_to_dict(row)
+
+    @classmethod
     async def list_all(cls) -> list:
         async with get_session() as session:
             rows = (await session.scalars(select(OrderRow).order_by(OrderRow.created_at.desc()).limit(1000))).all()
